@@ -8,6 +8,7 @@
 
 
 plugins {
+    id 'java'
     id 'java-library'
     id 'maven-publish'
     id 'org.teavm' version '0.15.0'
