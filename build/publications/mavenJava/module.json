@@ -1,0 +1,78 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "dev.jreact",
+    "module": "solaire-core",
+    "version": "1.0.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.5.1"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 25,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.teavm",
+          "module": "teavm-jso-apis",
+          "version": {
+            "requires": "0.15.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "solaire-core-1.0.0.jar",
+          "url": "solaire-core-1.0.0.jar",
+          "size": 11796,
+          "sha512": "1bc9c462685a93c544fd9d26c3958ae19c47caf6d7f81cd756212db39aa4a87a9a702a417f27262118ffe25dd15b32eabcc74ba66d7c881453b7c492254bb4e1",
+          "sha256": "1e74a9333917805dab63fd804053626c4ebb9c5de75bb41928ab57416635e8ef",
+          "sha1": "2028ec35681c0f4f6b49596070c31b3e4a7f12a8",
+          "md5": "36cae127159f2e00658e65124d722df1"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 25,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.teavm",
+          "module": "teavm-jso-apis",
+          "version": {
+            "requires": "0.15.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "solaire-core-1.0.0.jar",
+          "url": "solaire-core-1.0.0.jar",
+          "size": 11796,
+          "sha512": "1bc9c462685a93c544fd9d26c3958ae19c47caf6d7f81cd756212db39aa4a87a9a702a417f27262118ffe25dd15b32eabcc74ba66d7c881453b7c492254bb4e1",
+          "sha256": "1e74a9333917805dab63fd804053626c4ebb9c5de75bb41928ab57416635e8ef",
+          "sha1": "2028ec35681c0f4f6b49596070c31b3e4a7f12a8",
+          "md5": "36cae127159f2e00658e65124d722df1"
+        }
+      ]
+    }
+  ]
+}

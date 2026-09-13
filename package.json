@@ -1,0 +1,16 @@
+{
+    "name": "solaire-jreact",
+    "type": "module",
+    "version": "1.0.0",
+    "scripts": {
+        "build:java": "./gradlew generateJavaScript",
+        "tea-party": "npm run build:java && vite"
+    },
+    "devDependencies": {
+        "tailwindcss": "^4.3.3"
+    },
+    "dependencies": {
+        "@tailwindcss/vite": "^4.3.3",
+        "vite": "^8.3.0"
+    }
+}

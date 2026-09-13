@@ -1,0 +1,15 @@
+# Eclipse / JDTLS Workspace Metadata
+.classpath
+.project
+.settings/
+.factorypath
+bin/
+
+# Node Dependencies
+node_modules/
+
+# IDE Workspace Settings
+.vscode/
+
+# macOS System Files
+.DS_Store
