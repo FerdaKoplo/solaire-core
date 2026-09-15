@@ -1,11 +1,10 @@
-package dev.jreact.hooks;
-
+package dev.jreact.hooks.states;
 import dev.jreact.dom.JReact;
 
-public class State<T> {
+public class LocalState<T> {
     private T value;
 
-    public State(T initialValue) {
+    public LocalState(T initialValue) {
         this.value = initialValue;
     }
 
@@ -18,5 +17,4 @@ public class State<T> {
 
         JReact.render();
     }
-    
 }
