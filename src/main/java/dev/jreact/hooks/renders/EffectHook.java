@@ -5,7 +5,6 @@ import org.teavm.jso.browser.Window;
 import dev.jreact.hooks.libs.EffectCallback;
 
 import java.util.Arrays;
-import java.util.Objects;
 
 public class EffectHook {
     private Object[] lastDeps = null;
