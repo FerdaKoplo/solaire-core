@@ -1,32 +1,50 @@
 package dev.jreact.dom;
 
-import dev.jreact.dom.Renderer;
-import dev.jreact.dom.VNode;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Supplier;
 
 import org.teavm.jso.dom.html.HTMLElement;
 
+import dev.jreact.dom.nodes.VNode;
+
 public class JReact {
-    private static Component rootComponent;
+    private JReact() {
+    }
+
+    private static Supplier<VNode> rootRenderer;
     private static HTMLElement rootElement;
-    private static VNode currentTree;
+    private static VNode currentResolvedTree;
+    private static final ComponentTree componentTree = new ComponentTree();
 
     public static void mount(Component component, HTMLElement container) {
-        rootComponent = component;
-        rootElement = container;
-        render();
+        mountComponents(component::render, container);
+    }
+
+    public static <P> void mount(FC<P> fc, P props, HTMLElement container) {
+        mountComponents(() -> fc.render(props), container);
     }
 
     public static void render() {
-        if (rootComponent != null && rootElement != null) {
-            VNode newTree = rootComponent.render();
+        if (rootRenderer == null || rootElement == null)
+            return;
 
-            if (currentTree == null) {
-                Renderer.mount(newTree, rootElement);
-            } else {
-                Renderer.updateElement(rootElement, newTree, currentTree, 0);
-            }
+        VNode raw = rootRenderer.get();
+        Set<String> livePaths = new HashSet<>();
+        VNode resolved = Resolver.resolve(raw, "root", componentTree, livePaths);
+        componentTree.gc(livePaths);
 
-            currentTree = newTree;
+        if (currentResolvedTree == null) {
+            Renderer.mount(resolved, rootElement);
+        } else {
+            Renderer.updateElement(rootElement, resolved, currentResolvedTree, 0);
         }
+        currentResolvedTree = resolved;
+    }
+
+    private static void mountComponents(Supplier<VNode> renderer, HTMLElement container) {
+        rootRenderer = renderer;
+        rootElement = container;
+        render();
     }
 }
