@@ -97,7 +97,7 @@ public class Renderer {
         boolean keyed = !oldChildren.isEmpty() && allKeyed(oldChildren) && allKeyed(newChildren);
 
         if (DEBUG) {
-            System.out.println("UPDATE parent=" + parent.getNodeName()
+            JSConsole.log("UPDATE parent=" + parent.getNodeName()
                     + " keyed=" + keyed
                     + " old=" + keys(oldChildren)
                     + " new=" + keys(newChildren));
