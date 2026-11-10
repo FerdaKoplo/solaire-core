@@ -3,7 +3,7 @@ package dev.jreact.dom.elements;
 import java.util.HashMap;
 import java.util.Map;
 
-import dev.jreact.dom.VNode;
+import dev.jreact.dom.nodes.VNode;
 
 public class Forms {
     public static VNode form(VNode... children) {

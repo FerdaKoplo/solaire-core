@@ -1,6 +1,6 @@
 package dev.jreact.dom.elements;
 
-import dev.jreact.dom.VNode;
+import dev.jreact.dom.nodes.VNode;
 
 public class Layout {
     public static VNode div(VNode... children) {

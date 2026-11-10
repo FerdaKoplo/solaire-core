@@ -27,6 +27,9 @@ public class Renderer {
     private Renderer() {
     }
 
+    // Debug switch: flip to true (or set from DevTools if exported) to trace diffs.
+    public static boolean DEBUG = false;
+
     private static final HTMLDocument document = HTMLDocument.current();
 
     private static final Map<Node, Map<String, EventListener<?>>> listenerRegistry = new WeakHashMap<>();
@@ -37,6 +40,11 @@ public class Renderer {
         }
         if (vnode instanceof ElementVNode e) {
             HTMLElement element = document.createElement(e.tagName());
+
+            // Debug fingerprint: match this DOM node back to its VNode in DevTools.
+            if (DEBUG) {
+                element.setAttribute("data-vn", e.tagName() + (e.key() != null ? "#" + e.key() : "") + "@" + System.identityHashCode(e));
+            }
 
             for (Map.Entry<String, String> prop : e.props().entrySet()) {
                 element.setAttribute(prop.getKey(), prop.getValue());
@@ -69,7 +77,9 @@ public class Renderer {
         NodeList<? extends Node> childNodes = parent.getChildNodes();
 
         if (oldNode == null) {
-            parent.appendChild(renderNode(newNode));
+            // Insert at `index`, not append: growth in the middle/end must keep order.
+            Node ref = index < childNodes.getLength() ? childNodes.item(index) : null;
+            parent.insertBefore(renderNode(newNode), ref);
         } else if (newNode == null) {
             parent.removeChild(childNodes.item(index));
         } else if (isChanged(newNode, oldNode)) {
@@ -82,14 +92,24 @@ public class Renderer {
     }
 
     private static void updateChildren(Node parent, List<VNode> newChildren, List<VNode> oldChildren) {
-        boolean keyed = !oldChildren.isEmpty() && oldChildren.get(0).key() != null;
+        // Keyed path only when BOTH sides are fully keyed. Mixed keyed/unkeyed
+        // would put null keys in the map, so fall back to positional reconcile.
+        boolean keyed = !oldChildren.isEmpty() && allKeyed(oldChildren) && allKeyed(newChildren);
+
+        if (DEBUG) {
+            System.out.println("UPDATE parent=" + parent.getNodeName()
+                    + " keyed=" + keyed
+                    + " old=" + keys(oldChildren)
+                    + " new=" + keys(newChildren));
+        }
 
         if (!keyed) {
             updateChildrenByIndex(parent, newChildren, oldChildren);
             return;
         }
 
-        // BEFORE any DOM mutation, old indices are meaningless once its start 
+        // Old DOM nodes keyed by VNode key, captured BEFORE any mutation. => im honestly have no idea, just something i asked from deepseek
+        // insertBefore moves existing nodes, so positions shift as we go.
         Map<String, VNode> oldVNodeByKey = new HashMap<>();
         Map<String, Node> oldDomByKey = new HashMap<>();
         NodeList<? extends Node> domChildren = parent.getChildNodes();
@@ -103,10 +123,14 @@ public class Renderer {
         Node refNode = null;
         for (int i = newChildren.size() - 1; i >= 0; i--) {
             VNode newChild = newChildren.get(i);
-            VNode oldChild = oldVNodeByKey.get(newChild.key());
-            Node domNode = reconcile(parent, newChild, oldChild, oldDomByKey.get(newChild.key()));
-            if (oldChild != null)
-                reusedKeys.add(newChild.key());
+            String key = newChild.key();
+            VNode oldChild = oldVNodeByKey.get(key);
+            // If reconcile builds a FRESH node (old missing, or tag/text changed),
+            // the old DOM node for this key must be removed later, not kept.
+            boolean fresh = oldChild == null || isChanged(newChild, oldChild);
+            Node domNode = reconcile(parent, newChild, oldChild, oldDomByKey.get(key));
+            if (!fresh)
+                reusedKeys.add(key);
             parent.insertBefore(domNode, refNode);
             refNode = domNode;
         }
@@ -116,6 +140,24 @@ public class Renderer {
                 parent.removeChild(old.getValue());
             }
         }
+    }
+
+    private static boolean allKeyed(List<VNode> children) {
+        for (VNode c : children) {
+            if (c.key() == null) return false;
+        }
+        return true;
+    }
+
+    private static String keys(List<VNode> children) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < children.size(); i++) {
+            if (i > 0) sb.append(",");
+            VNode c = children.get(i);
+            sb.append(c.key() != null ? c.key() : "#" + i);
+            if (c instanceof TextVNode t) sb.append(":'").append(t.text()).append("'");
+        }
+        return sb.append("]").toString();
     }
 
     private static Node reconcile(Node parent, VNode newChild, VNode oldChild, Node oldDom) {
@@ -135,9 +177,12 @@ public class Renderer {
     private static void updateChildrenByIndex(Node parent, List<VNode> newChildren, List<VNode> oldChildren) {
         int newLength = newChildren.size();
         int oldLength = oldChildren.size();
-        for (int i = 0; i < newLength || i < oldLength; i++) {
-            updateElement(parent, i < newLength ? newChildren.get(i) : null,
-                    i < oldLength ? oldChildren.get(i) : null, i);
+        for (int i = 0; i < newLength; i++) {
+            updateElement(parent, newChildren.get(i), i < oldLength ? oldChildren.get(i) : null, i);
+        }
+        NodeList<? extends Node> childNodes = parent.getChildNodes();
+        while (childNodes.getLength() > newLength) {
+            parent.removeChild(childNodes.item(childNodes.getLength() - 1));
         }
     }
 

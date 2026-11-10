@@ -10,9 +10,7 @@ import dev.jreact.dom.nodes.TextVNode;
 import dev.jreact.dom.nodes.VNode;
 
 public class Core {
-    private Core() {
-
-    }
+    private Core() {}
 
     public static VNode h(String tagName, Attrs attrs, VNode... children) {
         Attrs a = attrs != null ? attrs : Attrs.of();
