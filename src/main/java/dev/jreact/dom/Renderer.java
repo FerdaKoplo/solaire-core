@@ -28,7 +28,7 @@ public class Renderer {
     }
 
     // Debug switch: flip to true (or set from DevTools if exported) to trace diffs.
-    public static boolean DEBUG = false;
+    public static boolean DEBUG = true;
 
     private static final HTMLDocument document = HTMLDocument.current();
 
