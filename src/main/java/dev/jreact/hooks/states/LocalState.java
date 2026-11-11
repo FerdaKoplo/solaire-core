@@ -9,6 +9,9 @@ public class LocalState<T> {
     }
 
     public T get() {
+        if (dev.jreact.dom.Renderer.DEBUG) {
+            dev.jreact.dom.JSConsole.log("GET -> " + value + " @ " + System.nanoTime());
+        }
         return value;
     }
 
