@@ -115,7 +115,9 @@ public class Renderer {
         NodeList<? extends Node> domChildren = parent.getChildNodes();
         for (int i = 0; i < oldChildren.size(); i++) {
             String key = oldChildren.get(i).key();
-            oldVNodeByKey.put(key, oldChildren.get(i));
+            if (oldVNodeByKey.put(key, oldChildren.get(i)) != null) {
+                throw new IllegalStateException("Duplicate key '" + key + "' in <" + parent.getNodeName() + "> children — keys must be unique per sibling list");
+            }
             oldDomByKey.put(key, domChildren.item(i));
         }
 
