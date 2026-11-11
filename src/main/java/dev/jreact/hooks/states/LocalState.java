@@ -9,12 +9,10 @@ public class LocalState<T> {
     }
 
     public T get() {
-        dev.jreact.dom.JSConsole.log("GET -> " + value + " @ " + System.nanoTime());
         return value;
     }
 
     public void set(T newValue) {
-        dev.jreact.dom.JSConsole.log("SET " + this.value + " -> " + newValue);
         this.value = newValue;
 
         JReact.render();
