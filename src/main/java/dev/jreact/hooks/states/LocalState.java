@@ -13,6 +13,9 @@ public class LocalState<T> {
     }
 
     public void set(T newValue) {
+        if (dev.jreact.dom.Renderer.DEBUG) {
+            dev.jreact.dom.JSConsole.log("SET " + this.value + " -> " + newValue);
+        }
         this.value = newValue;
 
         JReact.render();

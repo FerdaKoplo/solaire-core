@@ -1,9 +1,7 @@
 package dev.jreact.hooks.states;
 
 import dev.jreact.dom.JReact;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
