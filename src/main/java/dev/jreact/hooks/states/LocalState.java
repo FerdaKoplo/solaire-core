@@ -9,16 +9,12 @@ public class LocalState<T> {
     }
 
     public T get() {
-        if (dev.jreact.dom.Renderer.DEBUG) {
-            dev.jreact.dom.JSConsole.log("GET -> " + value + " @ " + System.nanoTime());
-        }
+        dev.jreact.dom.JSConsole.log("GET -> " + value + " @ " + System.nanoTime());
         return value;
     }
 
     public void set(T newValue) {
-        if (dev.jreact.dom.Renderer.DEBUG) {
-            dev.jreact.dom.JSConsole.log("SET " + this.value + " -> " + newValue);
-        }
+        dev.jreact.dom.JSConsole.log("SET " + this.value + " -> " + newValue);
         this.value = newValue;
 
         JReact.render();
