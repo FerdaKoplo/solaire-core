@@ -24,8 +24,13 @@ public class EffectHook {
                 if (cleanup != null) {
                     cleanup.run();
                 }
-                cleanup = effect.invoke();
+                // Commit deps BEFORE running the effect: the effect body may
+                // set() state, which re-renders synchronously. The re-render's
+                // bind() then sees lastDeps already equal to currentDeps and
+                // does not reschedule. (Same contract as React's post-commit
+                // deps snapshot; prevents re-entrant effect storms.)
                 lastDeps = currentDeps;
+                cleanup = effect.invoke();
             }, 0);
         }
     }
