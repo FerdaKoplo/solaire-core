@@ -4,6 +4,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import org.teavm.jso.JSBody;
+import org.teavm.jso.JSObject;
+import org.teavm.jso.JSProperty;
 import org.teavm.jso.core.JSPromise;
 
 public final class Http {
@@ -11,9 +13,12 @@ public final class Http {
 
     public static final int OK = 200;
 
-    public interface Response {
-        int status();
-        String body();
+    // Must extend JSObject with @JSProperty so TeaVM bridges the JS
+    // {status, body} object returned by fetch. A plain interface fails
+    // the JS->Java cast and every accessor throws "not a function".
+    public interface Response extends JSObject {
+        @JSProperty("status") int status();
+        @JSProperty("body") String body();
     }
 
     // @JSBody seams: raw JS mirrors the modern fetch API. TeaVM 0.15 ships no
