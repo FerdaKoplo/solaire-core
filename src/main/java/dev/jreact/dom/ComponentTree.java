@@ -14,6 +14,13 @@ public class ComponentTree {
     }
 
     public void gc(Set<String> livePaths) {
-        contexts.keySet().retainAll(livePaths);
+        contexts.keySet().stream()
+                .filter(p -> !livePaths.contains(p))
+                .sorted()
+                .toList()
+                .forEach(p -> {
+                    HookContext ctx = contexts.remove(p);
+                    if (ctx != null) ctx.unmount();
+                });
     }
 }

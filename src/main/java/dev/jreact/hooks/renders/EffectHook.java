@@ -10,6 +10,7 @@ public class EffectHook {
     private Object[] lastDeps = null;
     private Runnable cleanup = null;
     private boolean hasRun = false;
+    private boolean cancelled = false;
 
     public void bind(EffectCallback effect, Object... deps) {
         boolean depsChanged = !hasRun || !Arrays.equals(lastDeps, deps);
@@ -19,6 +20,7 @@ public class EffectHook {
             final Object[] currentDeps = Arrays.copyOf(deps, deps.length);
 
             Window.setTimeout(() -> {
+                if (cancelled) return;
                 if (cleanup != null) {
                     cleanup.run();
                 }
@@ -29,6 +31,7 @@ public class EffectHook {
     }
 
     public void unmount() {
+        cancelled = true;
         if (cleanup != null) {
             cleanup.run();
             cleanup = null;

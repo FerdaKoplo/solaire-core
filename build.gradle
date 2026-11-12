@@ -15,7 +15,7 @@ plugins {
 }
 
 group = 'dev.jreact'
-version = '1.0.0'
+version = '1.1.0'
 
 base {
     archivesName = 'solaire-core'
@@ -35,6 +35,16 @@ repositories {
 }
 
 dependencies {
-    api 'org.teavm:teavm-jso-apis:0.15.0' 
+    api 'org.teavm:teavm-jso-apis:0.15.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.3'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+testing {
+    suites {
+        test {
+            useJUnitJupiter()
+        }
     }
+}
 
