@@ -13,6 +13,14 @@ public class Attrs {
 
     public Attrs key(String key) { this.key = key; return this; }
     public Attrs prop(String name, String value) { props.put(name, value); return this; }
+
+    /** One call per class token; joins with single spaces. Readable across lines. */
+    public Attrs cls(String... classes) {
+        return prop("class", String.join(" ", classes));
+    }
+
     public Attrs on(String event, Runnable handler) { events.put(event, handler); return this; }
+
+    public Attrs cls(String value) { return prop("class", value); }
     
 }

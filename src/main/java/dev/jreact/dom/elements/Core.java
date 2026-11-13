@@ -30,6 +30,21 @@ public class Core {
         return new TextVNode(value);
     }
 
+    public static VNode text(Object value) {
+        return new TextVNode(value == null ? "" : value.toString());
+    }
+
+    @SuppressWarnings("unchecked")
+    public static VNode h(String tagName, Attrs attrs, Object... children) {
+        Attrs a = attrs != null ? attrs : Attrs.of();
+        VNode[] vs = new VNode[children.length];
+        for (int i = 0; i < children.length; i++) {
+            Object c = children[i];
+            vs[i] = c instanceof VNode v ? v : text(c);
+        }
+        return h(tagName, a, vs);
+    }
+
     public static <P> VNode component(FC<P> fc, P props) {
         return new ComponentVNode<>(fc, props, null);
     }
