@@ -16,7 +16,9 @@ public class Attrs {
 
     /** One call per class token; joins with single spaces. Readable across lines. */
     public Attrs cls(String... classes) {
-        return prop("class", String.join(" ", classes));
+        String joined = String.join(" ", classes);
+        String prev = props.get("class");
+        return prop("class", prev == null || prev.isEmpty() ? joined : prev + " " + joined);
     }
 
     public Attrs on(String event, Runnable handler) { events.put(event, handler); return this; }
