@@ -111,6 +111,31 @@ public class ModelTest {
     }
 
     @Test
+    void fluentBuilderBuildsNestedTree() {
+        VNode tree = H.el("div").cls("card").kids(
+                H.el("h1").kids("Count: ", 3),
+                H.el("button").onClick(() -> {}).kids("+1")
+        ).end();
+        ElementVNode div = (ElementVNode) tree;
+        assertEquals("div", div.tagName());
+        assertEquals("card", div.props().get("class"));
+        assertEquals(2, div.children().size());
+        ElementVNode h1 = (ElementVNode) div.children().get(0);
+        assertEquals("h1", h1.tagName());
+        assertEquals("Count: ", ((TextVNode) h1.children().get(0)).text());
+        assertEquals("3", ((TextVNode) h1.children().get(1)).text());
+        assertTrue(div.equals(tree));
+    }
+
+    @Test
+    void fluentBuilderIsImmutable() {
+        H base = H.el("div").cls("a");
+        H withB = base.cls("b");
+        assertEquals("a", ((ElementVNode) base.end()).props().get("class"));
+        assertEquals("b", ((ElementVNode) withB.end()).props().get("class"));
+    }
+
+    @Test
     void nodeFactoryBuildsNodes() {
         NodeFactory f = NodeFactory.getDefault();
         VNode t = f.text("x");

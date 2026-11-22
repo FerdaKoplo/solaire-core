@@ -52,19 +52,38 @@ in `dev.jreact.patterns` so the core stays uncluttered:
 
 ## Write a screen
 
+Two call styles. Pick one per file; they produce identical nodes and can mix.
+
+Fluent builder (`H`) — reads like nested HTML, one line per level:
+
 ```java
+import static dev.jreact.dom.H.el;
+
 public final class CounterPage implements FC.NoProps {
     @Override public VNode render(Renderer.RenderScope scope) {
         State<Integer> count = scope.useState(0);
-        return El.div(Attr.cls("card"),
-            El.h1(null, "Count: ", String.valueOf(count.get())),
-            El.button("+1", () -> count.set(v -> v + 1)),
-            El.button("reset", () -> count.set(0))
-        );
+        return el("div").cls("card").kids(
+            el("h1").kids("Count: ", count.get()),
+            el("button").onClick(() -> count.set(v -> v + 1)).kids("+1"),
+            el("button").onClick(() -> count.set(0)).kids("reset")
+        ).end();
     }
 }
+```
 
-// entry point
+Static factory (`El`) — compact, argument-list style:
+
+```java
+return El.div(Attr.cls("card"),
+    El.h1(null, "Count: ", String.valueOf(count.get())),
+    El.button("+1", () -> count.set(v -> v + 1)),
+    El.button("reset", () -> count.set(0))
+);
+```
+
+Entry point (either style):
+
+```java
 JReact.mount(new CounterPage(), document.getElementById("app"));
 ```
 

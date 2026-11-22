@@ -42,6 +42,7 @@ public final class El {
 
     public static VNode toNode(Object c) {
         if (c instanceof VNode v) return v;
+        if (c instanceof H h) return h.end();
         if (c instanceof Iterable<?> it) {
             List<VNode> kids = new ArrayList<>();
             for (Object o : it) kids.add(toNode(o));
