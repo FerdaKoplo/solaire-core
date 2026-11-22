@@ -39,10 +39,8 @@ public final class Attr {
     /** The DOM event currently being dispatched (null outside an event handler). */
     public static org.teavm.jso.dom.events.Event currentEvent() { return CURRENT_EVENT.get(); }
 
-    // ---- attrs ----
-
     public Attr attr(String name, String value) {
-        if (value == null) return this; // null = omit/remove
+        if (value == null) return this;
         Map<String, String> next = new HashMap<>(props);
         next.put(name, value);
         return new Attr(next, events, key);
@@ -75,8 +73,6 @@ public final class Attr {
     public Attr hidden(boolean h) { return h ? attr("hidden", "hidden") : this; }
     public Attr required(boolean r) { return r ? attr("required", "required") : this; }
     public Attr readonly(boolean r) { return r ? attr("readonly", "readonly") : this; }
-
-    // ---- events ----
 
     public Attr onClick(Runnable r) { return on("click", r); }
     public Attr onInput(Runnable r) { return on("input", r); }

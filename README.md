@@ -7,13 +7,13 @@ patches the DOM.
 ## How it works
 
 ```
-component  =  (scope, props) -> Node        // pure function
+component  =  (scope, props) -> Node
 state      =  scope.useState(initial)        // one cell per call position
 update     =  cell.set(value | fn)          // marks dirty, one render per microtask
 render     =  walk Node tree once, diff old vs new, patch DOM
 ```
 
-- A component is a pure function of props plus its own `State` cells. Call
+- A component is a function of props plus its own `State` cells. Call
   `scope.use(...)` unconditionally, in the same order each render; slots persist
   by tree position.
 - `State<T>` is one cell. `.get()` reads; `.set(v)` or `.set(fn)` writes and

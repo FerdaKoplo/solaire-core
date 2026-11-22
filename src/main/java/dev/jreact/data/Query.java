@@ -80,15 +80,11 @@ public final class Query {
         fetchers.put(key, fetcher);
         observedKeys.add(key);
 
-        // Subscribe this component to the entry via a state slot (rerender on change).
         Renderer.RenderScope scope = Renderer.currentScope();
         if (scope != null) {
             dev.jreact.dom.State<Integer> version = scope.useState(0);
             Runnable sub = () -> version.set(version.get() + 1);
             entry.subscribe(sub);
-            // Unsubscribe when this component unmounts: run once on next render
-            // after the component is gone (path no longer live). Simplest hook:
-            // store sub in the slot and rely on gc() to drop observers.
             scope.onCleanup(() -> entry.unsubscribe(sub));
         }
 
@@ -110,7 +106,7 @@ public final class Query {
         try {
             fetcher.fetch(value -> {
                 CacheEntry live = cache.get(key);
-                if (live == null) return; // gc'd mid-flight
+                if (live == null) return;
                 live.inFlight = false;
                 if (live.entry == null) live.entry = new Entry<T>(key);
                 Entry<T> e = (Entry<T>) live.entry;

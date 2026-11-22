@@ -27,7 +27,7 @@ import dev.jreact.dom.nodes.VNode;
  *  2. diff old vs new VNode trees, patch real DOM in place
  *
  * mental model:
- *  - a component is a pure function (scope, props) -> Node
+ *  - a component is a function (scope, props) -> Node
  *  - state lives in State slots keyed by tree position; survives re-renders
  *  - set() marks the app dirty; one render per microtask total (batching)
  *  - ElementVNode with equal value -> DOM untouched (structural sharing)
@@ -50,8 +50,6 @@ public final class Renderer {
     private static final ThreadLocal<RenderScope> CURRENT = new ThreadLocal<>();
 
     public static RenderScope currentScope() { return CURRENT.get(); }
-
-    // ---------- resolve: apply components, produce plain element/text tree ----------
 
     @SuppressWarnings("unchecked")
     static VNode resolve(VNode node, String path, Set<String> livePaths) {
@@ -211,8 +209,6 @@ public final class Renderer {
             }
         }
     }
-
-    // ---------- DOM build + patch ----------
 
     static void mount(VNode node, HTMLElement container) {
         container.setInnerHTML("");

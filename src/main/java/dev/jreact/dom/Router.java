@@ -38,7 +38,7 @@ public final class Router {
     }
 
     public static final class Route {
-        final String pattern;                 // e.g. "/users/:id"
+        final String pattern;
         final String[] segments;
         final Page page;
 

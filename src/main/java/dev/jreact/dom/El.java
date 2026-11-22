@@ -23,8 +23,6 @@ import dev.jreact.dom.nodes.VNode;
 public final class El {
     private El() {}
 
-    // ---------------- core builders ----------------
-
     /** Raw element: exact control over tag/key/props/events. */
     public static VNode h(String tag, Attr attrs, VNode... children) {
         return new ElementVNode(tag,
@@ -77,8 +75,6 @@ public final class El {
         return new ComponentVNode<>(fc, props, null);
     }
 
-    // ---------------- layout ----------------
-
     public static VNode div(Attr a, Object... c) { return h("div", a, c); }
     public static VNode div(Object... c) { return h("div", null, c); }
     public static VNode span(Attr a, Object... c) { return h("span", a, c); }
@@ -95,8 +91,6 @@ public final class El {
     public static VNode br() { return h("br", null); }
     public static VNode hr() { return h("hr", null); }
 
-    // ---------------- typography ----------------
-
     public static VNode h1(Attr a, Object... c) { return h("h1", a, c); }
     public static VNode h2(Attr a, Object... c) { return h("h2", a, c); }
     public static VNode h3(Attr a, Object... c) { return h("h3", a, c); }
@@ -108,8 +102,6 @@ public final class El {
     public static VNode code(Attr a, Object... c) { return h("code", a, c); }
     public static VNode small(Attr a, Object... c) { return h("small", a, c); }
 
-    // ---------------- media ----------------
-
     public static VNode img(String src, String alt) {
         return h("img", Attr.of().src(src).alt(alt));
     }
@@ -117,8 +109,6 @@ public final class El {
     public static VNode img(Attr a, String src, String alt) {
         return h("img", a.src(src).alt(alt));
     }
-
-    // ---------------- links / routing ----------------
 
     /** Plain anchor. For app navigation prefer link() (no page reload). */
     public static VNode a(String href, Object... children) {
@@ -135,8 +125,6 @@ public final class El {
         return Router.link(to, text(label));
     }
 
-    // ---------------- lists ----------------
-
     public static VNode ul(Attr a, Object... c) { return h("ul", a, c); }
     public static VNode ul(Object... c) { return h("ul", null, c); }
     public static VNode ol(Attr a, Object... c) { return h("ol", a, c); }
@@ -144,8 +132,6 @@ public final class El {
     public static VNode li(Attr a, Object... c) { return h("li", a, c); }
     public static VNode li(Object... c) { return h("li", null, c); }
     public static VNode li(String key, Object... c) { return h("li", Attr.of().key(key), c); }
-
-    // ---------------- forms ----------------
 
     public static VNode form(Attr a, Object... children) { return h("form", a, children); }
     public static VNode form(Object... children) { return h("form", null, children); }
@@ -186,8 +172,6 @@ public final class El {
     public static VNode submit(String label) {
         return h("button", Attr.of().type("submit"), text(label));
     }
-
-    // ---------------- tables ----------------
 
     public static VNode table(Attr a, Object... c) { return h("table", a, c); }
     public static VNode thead(Attr a, Object... c) { return h("thead", a, c); }

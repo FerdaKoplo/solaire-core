@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Self-check for the new mental model: component = pure fn, state in slots,
- * tree diff by value.
+ * Self-check for the mental model: component fn, state in slots, tree diff by
+ * value.
  */
 public class ModelTest {
 
@@ -21,9 +21,9 @@ public class ModelTest {
     void elementEqualityByValue() {
         VNode a = new ElementVNode("div", null, Map.of("class", "x"), Map.of(), List.of(new TextVNode("hi")));
         VNode b = new ElementVNode("div", null, Map.of("class", "x"), Map.of(), List.of(new TextVNode("hi")));
-        assertEquals(a, b);          // unchanged subtree => untouched DOM
+        assertEquals(a, b);
         VNode c = new ElementVNode("div", null, Map.of("class", "y"), Map.of(), List.of(new TextVNode("hi")));
-        assertNotEquals(a, c);       // changed prop => patch
+        assertNotEquals(a, c);
     }
 
     @Test
@@ -34,7 +34,7 @@ public class ModelTest {
         count.set(count.get() + 1);
 
         Renderer.RenderScope s2 = new Renderer.RenderScope(inst);
-        State<Integer> again = s2.useState(99); // initial ignored
+        State<Integer> again = s2.useState(99);
         assertEquals(1, again.get());
     }
 
@@ -57,7 +57,7 @@ public class ModelTest {
         r1.useEffect(() -> {}, "a");
         Renderer.RenderScope r2 = new Renderer.RenderScope(inst);
         r2.useEffect(() -> {}, "a");
-        assertEquals(1, inst.states.size()); // one effect slot, no dup
+        assertEquals(1, inst.states.size());
     }
 
     @Test
@@ -83,8 +83,8 @@ public class ModelTest {
     void memoBoxChangesOnDepsChange() {
         Renderer.MemoBox<String> box = new Renderer.MemoBox<>();
         assertEquals("1", box.compute(d -> "1", "a"));
-        assertEquals("1", box.compute(d -> "2", "a")); // cached
-        assertEquals("2", box.compute(d -> "2", "b")); // recompute
+        assertEquals("1", box.compute(d -> "2", "a"));
+        assertEquals("2", box.compute(d -> "2", "b"));
     }
 
     @Test
@@ -92,7 +92,7 @@ public class ModelTest {
         Renderer.Instance inst = new Renderer.Instance();
         Renderer.RenderScope s = new Renderer.RenderScope(inst);
         State<String> name = s.useState("bob");
-        name.set("bob");          // no-op
+        name.set("bob");
         assertEquals("bob", name.get());
         name.set(v -> v + "!");
         assertEquals("bob!", name.get());
