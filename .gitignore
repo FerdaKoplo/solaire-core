@@ -13,3 +13,7 @@ node_modules/
 
 # macOS System Files
 .DS_Store
+
+# Gradle build output
+build/
+.gradle/
