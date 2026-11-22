@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * Self-check for the mental model: component fn, state in slots, tree diff by
- * value.
+ * value; plus the factory/strategy/observer seams.
  */
 public class ModelTest {
 
@@ -57,11 +57,11 @@ public class ModelTest {
         r1.useEffect(() -> {}, "a");
         Renderer.RenderScope r2 = new Renderer.RenderScope(inst);
         r2.useEffect(() -> {}, "a");
-        assertEquals(1, inst.states.size());
+        assertEquals(1, inst.statesView().size());
     }
 
     @Test
-    void componentIsPureFunction() {
+    void componentIsFunction() {
         Renderer.Instance inst = new Renderer.Instance();
         Renderer.RenderScope scope = new Renderer.RenderScope(inst);
         FC<String> hello = (sc, name) -> El.h("p", null, El.text("hi " + name));
@@ -103,7 +103,58 @@ public class ModelTest {
         Renderer.Instance inst = new Renderer.Instance();
         Renderer.RenderScope s = new Renderer.RenderScope(inst);
         Renderer.Ref<Integer> clicks = s.useRef(0);
-        clicks.current++;
-        assertEquals(1, clicks.current);
+        clicks.set(clicks.get() + 1);
+        assertEquals(1, clicks.get());
+    }
+
+    @Test
+    void nodeFactoryBuildsNodes() {
+        NodeFactory f = NodeFactory.getDefault();
+        VNode t = f.text("x");
+        assertTrue(t instanceof TextVNode);
+        VNode e = f.element("div", null, Map.of(), Map.of(), List.of());
+        assertTrue(e instanceof ElementVNode);
+    }
+
+    @Test
+    void propStrategyFallsBackToSetAttribute() {
+        PropStrategies.Strategy s = PropStrategies.forName("data-x");
+        assertNotNull(s);
+        assertSame(PropStrategies.forName("value"), PropStrategies.forName("value"));
+        assertEquals(PropStrategies.forName("value"), PropStrategies.forName("value"));
+        assertNotEquals(s, PropStrategies.forName("value"));
+    }
+
+    @Test
+    void routeTableMatchesInOrder() {
+        RouteTable table = new RouteTable();
+        table.register("/users/:id", params -> El.text("user " + params.get("id")));
+        table.register("/", params -> El.text("home"));
+        RouteTable.RouteMatch m = table.resolve("/users/7");
+        assertNotNull(m);
+        assertEquals("/users/:id", m.pattern());
+        assertEquals("7", m.params().get("id"));
+        RouteTable.RouteMatch home = table.resolve("/");
+        assertNotNull(home);
+        assertEquals("/", home.pattern());
+        assertNull(table.resolve("/nope"));
+    }
+
+    @Test
+    void customMatcherStrategyApplies() {
+        RouteTable table = new RouteTable((segments, path) -> Map.of("path", path));
+        table.register("anything", params -> El.text("ok"));
+        RouteTable.RouteMatch m = table.resolve("/whatever/segments");
+        assertNotNull(m);
+        assertEquals("/whatever/segments", m.params().get("path"));
+    }
+
+    @Test
+    void instanceDisposesCleanups() {
+        Renderer.Instance inst = new Renderer.Instance();
+        int[] runs = {0};
+        inst.onCleanup(() -> runs[0]++);
+        inst.dispose();
+        assertEquals(1, runs[0]);
     }
 }

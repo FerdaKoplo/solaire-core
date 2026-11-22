@@ -11,16 +11,17 @@ import java.util.function.Function;
 
 import dev.jreact.dom.JReact;
 import dev.jreact.dom.Renderer;
+import dev.jreact.dom.Subscription;
 
 /**
- * TanStack-Query-shaped data layer with the same mental model:
+ * Cache layer:
  *
- *   Query.use("users", fetchUsers)   -> { data, error, loading, refetch }
+ *   Query.use("users", fetchUsers)   -> entry (data, error, phase, refetch)
  *   Query.invalidate("users")        -> mark stale + refetch active queries
- *   Query.set("users", mapper)       -> optimistic update without fetch
+ *   Query.set("users", mapper)       -> local update without fetch
  *   Query.mutate("users", work, onSuccess)
  *
- * One cache keyed by query key string. In-flight requests deduped per key.
+ * One cache keyed by query key. In-flight requests deduped per key.
  * Stale-while-revalidate: cached data renders immediately, background refetch
  * updates when stale. Subscribers trigger app re-render through JReact.
  */
@@ -30,36 +31,44 @@ public final class Query {
     public static final long DEFAULT_STALE_MS = 30_000;
 
     private static final Map<String, CacheEntry> cache = new HashMap<>();
-    /** keys currently observed by mounted components (for gc + invalidation). */
     private static final Set<String> observedKeys = new LinkedHashSet<>();
-    /** registered fetchers so invalidate() can refetch without a render. */
     private static final Map<String, Fetch<?>> fetchers = new HashMap<>();
+
+    /** Lifecycle of a cached query. */
+    public enum Phase { LOADING, SUCCESS, ERROR }
 
     public static final class Entry<T> {
         private final String key;
         private T data;
         private String error;
-        private boolean loading;
         private long fetchedAt;
-        private final List<Runnable> listeners = new ArrayList<>();
+        private Phase phase;
+        private final List<Consumer<Entry<T>>> observers = new ArrayList<>();
 
-        Entry(String key) { this.key = key; this.loading = true; }
+        Entry(String key) {
+            this.key = key;
+            this.phase = Phase.LOADING;
+        }
 
         public T data() { return data; }
         public String error() { return error; }
-        public boolean isLoading() { return loading; }
+        public Phase phase() { return phase; }
+        public boolean isLoading() { return phase == Phase.LOADING; }
         public boolean hasData() { return data != null; }
         public long fetchedAt() { return fetchedAt; }
         public String key() { return key; }
         public boolean isStale() { return System.currentTimeMillis() - fetchedAt > DEFAULT_STALE_MS; }
 
-        void changed() {
-            for (Runnable r : List.copyOf(listeners)) r.run();
+        void transition(Phase next) {
+            this.phase = next;
+            for (Consumer<Entry<T>> o : List.copyOf(observers)) o.accept(this);
             JReact.requestRender();
         }
 
-        void subscribe(Runnable l) { listeners.add(l); }
-        void unsubscribe(Runnable l) { listeners.remove(l); }
+        public Subscription subscribe(Consumer<Entry<T>> observer) {
+            observers.add(observer);
+            return () -> observers.remove(observer);
+        }
     }
 
     private static final class CacheEntry {
@@ -69,7 +78,7 @@ public final class Query {
 
     /**
      * Read-or-fetch. Call inside a component render: returns current entry and
-     * subscribes the component to updates. First call returns loading=true;
+     * subscribes the component to updates. First call returns phase LOADING;
      * data lands via re-render. Never blocks.
      */
     @SuppressWarnings("unchecked")
@@ -84,8 +93,8 @@ public final class Query {
         if (scope != null) {
             dev.jreact.dom.State<Integer> version = scope.useState(0);
             Runnable sub = () -> version.set(version.get() + 1);
-            entry.subscribe(sub);
-            scope.onCleanup(() -> entry.unsubscribe(sub));
+            entry.subscribe(e -> sub.run());
+            scope.onCleanup(() -> entry.subscribe(e -> sub.run()).unsubscribe());
         }
 
         if ((entry.fetchedAt == 0 || entry.isStale()) && !ce.inFlight) fetch(key, fetcher);
@@ -100,9 +109,8 @@ public final class Query {
         ce.inFlight = true;
         if (ce.entry == null) ce.entry = new Entry<T>(key);
         Entry<T> entry = (Entry<T>) ce.entry;
-        entry.loading = true;
         entry.error = null;
-        entry.changed();
+        entry.transition(Phase.LOADING);
         try {
             fetcher.fetch(value -> {
                 CacheEntry live = cache.get(key);
@@ -112,9 +120,8 @@ public final class Query {
                 Entry<T> e = (Entry<T>) live.entry;
                 e.data = value;
                 e.error = null;
-                e.loading = false;
                 e.fetchedAt = System.currentTimeMillis();
-                e.changed();
+                e.transition(Phase.SUCCESS);
             }, err -> {
                 CacheEntry live = cache.get(key);
                 if (live == null) return;
@@ -122,14 +129,12 @@ public final class Query {
                 if (live.entry == null) live.entry = new Entry<T>(key);
                 Entry<T> e = (Entry<T>) live.entry;
                 e.error = err == null ? "unknown error" : err;
-                e.loading = false;
-                e.changed();
+                e.transition(Phase.ERROR);
             });
         } catch (RuntimeException ex) {
             ce.inFlight = false;
             entry.error = ex.getMessage() == null ? ex.toString() : ex.getMessage();
-            entry.loading = false;
-            entry.changed();
+            entry.transition(Phase.ERROR);
         }
     }
 
@@ -156,7 +161,7 @@ public final class Query {
         }
     }
 
-    /** Optimistic local update without network. */
+    /** Local update without network. */
     @SuppressWarnings("unchecked")
     public static <T> void set(String key, Function<T, T> mapper) {
         CacheEntry ce = cache.get(key);
@@ -164,7 +169,7 @@ public final class Query {
         Entry<T> e = (Entry<T>) ce.entry;
         e.data = mapper.apply(e.data);
         e.fetchedAt = System.currentTimeMillis();
-        e.changed();
+        e.transition(Phase.SUCCESS);
     }
 
     /** Mutation: run work, update cache via onSuccess, invalidate key. */

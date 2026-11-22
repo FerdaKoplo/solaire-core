@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
-import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.events.Event;
 import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
@@ -41,9 +40,37 @@ public final class Renderer {
     /** Component instances by tree path. Dropped when a path disappears (unmount). */
     private static final Map<String, Instance> instances = new HashMap<>();
 
+    /** Node construction strategy (abstract factory). */
+    private static NodeFactory factory = NodeFactory.getDefault();
+
+    public static void setFactory(NodeFactory next) { factory = next == null ? NodeFactory.getDefault() : next; }
+
+    public static NodeFactory factory() { return factory; }
+
+    /** Per-tree-position state: hook slots plus cleanup callbacks. */
     static final class Instance {
-        final List<State<?>> states = new ArrayList<>();
-        final List<Runnable> cleanups = new ArrayList<>();
+        private final List<State<?>> states = new ArrayList<>();
+        private final List<Runnable> cleanups = new ArrayList<>();
+
+        <T> State<T> slot(int index, T initial) {
+            if (index < states.size()) return cast(states.get(index));
+            State<T> s = new State<>(initial, JReact::requestRender);
+            states.add(s);
+            return s;
+        }
+
+        void onCleanup(Runnable cleanup) { cleanups.add(cleanup); }
+
+        void dispose() {
+            for (State<?> s : states) if (s.rawValue() instanceof EffectBox eb) eb.dispose();
+            for (Runnable c : cleanups) c.run();
+            cleanups.clear();
+        }
+
+        List<State<?>> statesView() { return states; }
+
+        @SuppressWarnings("unchecked")
+        private static <T> State<T> cast(State<?> s) { return (State<T>) s; }
     }
 
     /** Currently rendering scope (for library hooks like Query.use). */
@@ -95,14 +122,7 @@ public final class Renderer {
 
         /** useState: one cell per call position. */
         public <T> State<T> use(T initial) {
-            if (cursor < inst.states.size()) {
-                @SuppressWarnings("unchecked") State<T> s = (State<T>) inst.states.get(cursor++);
-                return s;
-            }
-            State<T> s = new State<>(initial, JReact::requestRender);
-            inst.states.add(s);
-            cursor++;
-            return s;
+            return inst.slot(cursor++, initial);
         }
 
         public <T> State<T> useState(T initial) { return use(initial); }
@@ -123,8 +143,7 @@ public final class Renderer {
             useEffect(() -> { effect.run(); return null; }, deps);
         }
 
-        /** Effect with optional cleanup, deferred to after paint. In the browser
-         * this is setTimeout(0); on the JVM (tests) it runs inline. */
+        /** Effect with optional cleanup, deferred to after paint (see EffectScheduler). */
         public void useEffect(EffectCallback effect, Object... deps) {
             State<EffectBox> s = use(new EffectBox());
             s.get().run(effect, deps);
@@ -132,13 +151,18 @@ public final class Renderer {
 
         /** Register cleanup to run if this component unmounts. */
         public void onCleanup(Runnable cleanup) {
-            inst.cleanups.add(cleanup);
+            inst.onCleanup(cleanup);
         }
     }
 
     public static final class Ref<T> {
-        public T current;
-        Ref(T v) { this.current = v; }
+        private T value;
+
+        Ref(T v) { this.value = v; }
+
+        public T get() { return value; }
+
+        public void set(T next) { this.value = next; }
     }
 
     @FunctionalInterface
@@ -168,26 +192,16 @@ public final class Renderer {
         private boolean init;
         private boolean disposed;
 
-        private static final boolean IN_BROWSER =
-                System.getProperty("java.vm.name", "").toLowerCase().contains("machine")
-                        && org.teavm.jso.browser.Window.current() != null;
-
         void run(EffectCallback effect, Object... d) {
             if (init && java.util.Arrays.equals(deps, d)) return;
             deps = java.util.Arrays.copyOf(d, d.length);
             init = true;
             disposed = false;
-            if (IN_BROWSER) {
-                Window.setTimeout(() -> {
-                    if (disposed) return;
-                    if (cleanup != null) cleanup.run();
-                    cleanup = effect.invoke();
-                }, 0);
-            } else {
+            EffectScheduler.get().schedule(() -> {
                 if (disposed) return;
                 if (cleanup != null) cleanup.run();
                 cleanup = effect.invoke();
-            }
+            });
         }
 
         void dispose() {
@@ -201,11 +215,7 @@ public final class Renderer {
         for (String path : List.copyOf(instances.keySet())) {
             if (!livePaths.contains(path)) {
                 Instance inst = instances.remove(path);
-                if (inst == null) continue;
-                for (State<?> s : inst.states)
-                    if (s.rawValue() instanceof EffectBox eb) eb.dispose();
-                for (Runnable c : inst.cleanups) c.run();
-                inst.cleanups.clear();
+                if (inst != null) inst.dispose();
             }
         }
     }
@@ -223,7 +233,8 @@ public final class Renderer {
         if (node instanceof TextVNode t) return document.createTextNode(t.text());
         ElementVNode e = (ElementVNode) node;
         HTMLElement el = document.createElement(e.tagName());
-        for (Map.Entry<String, String> p : e.props().entrySet()) applyProp(el, p.getKey(), p.getValue());
+        for (Map.Entry<String, String> p : e.props().entrySet())
+            PropStrategies.forName(p.getKey()).apply(el, p.getKey(), p.getValue());
         for (Map.Entry<String, Runnable> ev : e.events().entrySet()) {
             el.addEventListener(ev.getKey(), evt -> dispatch(ev.getValue(), evt));
         }
@@ -241,13 +252,6 @@ public final class Renderer {
             Attr.clearLastInput();
             Attr.clearCurrentEvent();
         }
-    }
-
-    private static void applyProp(HTMLElement el, String name, String value) {
-        if (value == null) { el.removeAttribute(name); return; }
-        if ("value".equals(name) && el instanceof HTMLInputElement input) { input.setValue(value); return; }
-        if ("checked".equals(name) && el instanceof HTMLInputElement input) { input.setChecked(true); return; }
-        el.setAttribute(name, value);
     }
 
     private static void updateChildren(Node parent, List<VNode> next, List<VNode> prev) {
@@ -293,7 +297,8 @@ public final class Renderer {
             if (!ne.props().containsKey(k)) el.removeAttribute(k);
         for (Map.Entry<String, String> p : ne.props().entrySet()) {
             String old = oe.props().get(p.getKey());
-            if (!p.getValue().equals(old)) applyProp(el, p.getKey(), p.getValue());
+            if (!p.getValue().equals(old))
+                PropStrategies.forName(p.getKey()).apply(el, p.getKey(), p.getValue());
         }
         updateChildren(el, ne.children(), oe.children());
     }

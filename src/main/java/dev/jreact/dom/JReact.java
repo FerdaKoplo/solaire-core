@@ -1,9 +1,12 @@
 package dev.jreact.dom;
 
-import java.util.function.Supplier;
-
 import org.teavm.jso.browser.Window;
 import org.teavm.jso.dom.html.HTMLElement;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 
 import dev.jreact.dom.nodes.VNode;
 

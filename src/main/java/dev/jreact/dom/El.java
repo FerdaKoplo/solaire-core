@@ -1,16 +1,12 @@
 package dev.jreact.dom;
 
+import dev.jreact.dom.nodes.VNode;
+
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-
-import dev.jreact.dom.nodes.ComponentVNode;
-import dev.jreact.dom.nodes.ElementVNode;
-import dev.jreact.dom.nodes.TextVNode;
-import dev.jreact.dom.nodes.VNode;
 
 /**
  * The JSX layer. Everything you need to build UI lives here: tags, forms,
@@ -25,14 +21,14 @@ public final class El {
 
     /** Raw element: exact control over tag/key/props/events. */
     public static VNode h(String tag, Attr attrs, VNode... children) {
-        return new ElementVNode(tag,
+        return NodeFactory.getDefault().element(tag,
                 attrs == null ? null : attrs.key(),
                 attrs == null ? Map.of() : attrs.props(),
                 attrs == null ? Map.of() : attrs.events(),
                 Arrays.asList(children));
     }
 
-    /** Tag + attrs + loose children (Strings deepseek-v4-pro-wrap in text nodes). */
+    /** Tag + attrs + loose children (Strings wrap in text nodes). */
     public static VNode h(String tag, Attr attrs, Object... children) {
         return h(tag, attrs, toNodes(children));
     }
@@ -55,24 +51,24 @@ public final class El {
 
     /** Multiple roots without a wrapper element (rendered inline). */
     public static VNode frag(VNode... children) {
-        return new ElementVNode("#frag", null, Map.of(), Map.of(), List.of(children));
+        return NodeFactory.getDefault().element("#frag", null, Map.of(), Map.of(), List.of(children));
     }
 
     public static VNode frag(List<VNode> children) {
-        return new ElementVNode("#frag", null, Map.of(), Map.of(), children);
+        return NodeFactory.getDefault().element("#frag", null, Map.of(), Map.of(), children);
     }
 
     public static VNode text(Object value) {
-        return new TextVNode(value == null ? "" : value.toString());
+        return NodeFactory.getDefault().text(value == null ? "" : value.toString());
     }
 
     /** Declare a component usage (resolved by Renderer, key keeps state). */
     public static <P> VNode component(FC<P> fc, P props, String key) {
-        return new ComponentVNode<>(fc, props, key);
+        return NodeFactory.getDefault().component(fc, props, key);
     }
 
     public static <P> VNode component(FC<P> fc, P props) {
-        return new ComponentVNode<>(fc, props, null);
+        return NodeFactory.getDefault().component(fc, props, null);
     }
 
     public static VNode div(Attr a, Object... c) { return h("div", a, c); }
