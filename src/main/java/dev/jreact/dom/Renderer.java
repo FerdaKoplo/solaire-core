@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.function.Function;
 
 import org.teavm.jso.dom.events.Event;
-import org.teavm.jso.dom.html.HTMLDocument;
 import org.teavm.jso.dom.html.HTMLElement;
 import org.teavm.jso.dom.html.HTMLInputElement;
 import org.teavm.jso.dom.xml.Node;
@@ -20,25 +19,27 @@ import dev.jreact.dom.nodes.ElementVNode;
 import dev.jreact.dom.nodes.TextVNode;
 import dev.jreact.dom.nodes.VNode;
 import dev.jreact.patterns.factory.NodeFactory;
+import dev.jreact.patterns.strategy.DomOps;
 import dev.jreact.patterns.strategy.EffectScheduler;
 import dev.jreact.patterns.strategy.PropStrategies;
 
 /**
  * Reconciliation. Two jobs:
  *  1. resolve ComponentVNodes (call FC with a RenderScope) into elements
- *  2. diff old vs new VNode trees, patch real DOM in place
+ *  2. diff old vs new VNode trees, patch DOM in place
  *
  * mental model:
  *  - a component is a function (scope, props) -> Node
  *  - state lives in State slots keyed by tree position; survives re-renders
  *  - set() marks the app dirty; one render per microtask total (batching)
  *  - ElementVNode with equal value -> DOM untouched (structural sharing)
+ *
+ * All DOM work goes through DomOps: BrowserDomOps in a browser, FakeDom on the
+ * JVM (see dev.jreact.patterns.strategy) so reconciliation is testable headless.
  */
 public final class Renderer {
 
     private Renderer() {}
-
-    private static final HTMLDocument document = HTMLDocument.current();
 
     /** Component instances by tree path. Dropped when a path disappears (unmount). */
     private static final Map<String, Instance> instances = new HashMap<>();
@@ -47,7 +48,6 @@ public final class Renderer {
     private static NodeFactory factory = NodeFactory.getDefault();
 
     public static void setFactory(NodeFactory next) { factory = next == null ? NodeFactory.getDefault() : next; }
-
     public static NodeFactory factory() { return factory; }
 
     /** Per-tree-position state: hook slots plus cleanup callbacks. */
@@ -187,6 +187,8 @@ public final class Renderer {
             }
             return value;
         }
+
+        void reset() { value = null; deps = null; init = false; }
     }
 
     static final class EffectBox {
@@ -223,26 +225,33 @@ public final class Renderer {
         }
     }
 
-    static void mount(VNode node, HTMLElement container) {
-        container.setInnerHTML("");
-        container.appendChild(buildDom(node));
+    static void mount(VNode node, Node container) {
+        DomOps ops = DomOps.get();
+        ops.clear(container);
+        ops.appendToRoot(container, buildDom(node, ops));
     }
 
-    static void update(HTMLElement container, VNode next, VNode prev) {
-        updateChildren(container, List.of(next), prev == null ? List.of() : List.of(prev));
+    static void update(Node container, VNode next, VNode prev) {
+        updateChildren(container, List.of(next), prev == null ? List.of() : List.of(prev), DomOps.get());
     }
 
-    private static Node buildDom(VNode node) {
-        if (node instanceof TextVNode t) return document.createTextNode(t.text());
+    private static Node buildDom(VNode node, DomOps ops) {
+        if (node instanceof TextVNode t) return ops.createText(t.text());
         ElementVNode e = (ElementVNode) node;
-        HTMLElement el = document.createElement(e.tagName());
+        Node el = ops.createElement(e.tagName());
         for (Map.Entry<String, String> p : e.props().entrySet())
-            PropStrategies.forName(p.getKey()).apply(el, p.getKey(), p.getValue());
+            applyProp(ops, el, p.getKey(), p.getValue());
         for (Map.Entry<String, Runnable> ev : e.events().entrySet()) {
-            el.addEventListener(ev.getKey(), evt -> dispatch(ev.getValue(), evt));
+            final Runnable handler = ev.getValue();
+            ops.addListener(el, ev.getKey(), evt -> dispatch(handler, evt));
         }
-        for (VNode c : e.children()) el.appendChild(buildDom(c));
+        for (VNode c : e.children()) ops.appendChild(el, buildDom(c, ops));
         return el;
+    }
+
+    private static void applyProp(DomOps ops, Node el, String name, String value) {
+        if (el instanceof HTMLElement html) PropStrategies.forName(name).apply(html, name, value);
+        else ops.setAttribute(el, name, value);
     }
 
     private static void dispatch(Runnable handler, Event evt) {
@@ -257,29 +266,68 @@ public final class Renderer {
         }
     }
 
-    private static void updateChildren(Node parent, List<VNode> next, List<VNode> prev) {
-        Map<String, Integer> prevByKey = new HashMap<>();
+    private static void updateChildren(Node parent, List<VNode> next, List<VNode> prev, DomOps ops) {
+        List<Node> dom = snapshot(ops, parent);
+        Map<String, Integer> prevIdxByKey = new HashMap<>();
+        Map<String, Node> domByKey = new HashMap<>();
         for (int i = 0; i < prev.size(); i++) {
             VNode c = prev.get(i);
-            if (c.key() != null) prevByKey.put(c.key(), i);
-        }
-        NodeList<? extends Node> dom = parent.getChildNodes();
-        for (int i = 0; i < next.size(); i++) {
-            VNode n = next.get(i);
-            Integer oldIdx = n.key() != null ? prevByKey.get(n.key()) : (i < prev.size() ? i : null);
-            Node existing = i < dom.getLength() ? dom.item(i) : null;
-            VNode o = oldIdx != null && oldIdx < prev.size() ? prev.get(oldIdx) : null;
-            if (o == null) {
-                parent.insertBefore(buildDom(n), existing);
-            } else if (isSameShape(n, o)) {
-                patch(existing, n, o);
-            } else {
-                parent.replaceChild(buildDom(n), existing);
+            if (c.key() != null) {
+                prevIdxByKey.put(c.key(), i);
+                if (i < dom.size()) domByKey.put(c.key(), dom.get(i));
             }
         }
-        while (parent.getChildNodes().getLength() > next.size()) {
-            parent.removeChild(parent.getChildNodes().item(parent.getChildNodes().getLength() - 1));
+        for (int i = 0; i < next.size(); i++) {
+            VNode n = next.get(i);
+            VNode o = n.key() != null
+                    ? indexIn(prev, prevIdxByKey.get(n.key()))
+                    : (i < prev.size() ? prev.get(i) : null);
+            Node existing = i < dom.size() ? dom.get(i) : null;
+            if (o == null) {
+                Node built = buildDom(n, ops);
+                ops.insertBefore(parent, built, existing);
+                dom.add(i, built);
+            } else if (n.key() != null) {
+                Node moved = domByKey.get(n.key());
+                if (moved == null) {
+                    moved = existing;
+                } else if (moved != existing) {
+                    int from = dom.indexOf(moved);
+                    if (from >= 0) {
+                        dom.remove(from);
+                        Node ref = i < dom.size() ? dom.get(i) : null;
+                        ops.insertBefore(parent, moved, ref);
+                        dom.add(i, moved);
+                    }
+                }
+                if (isSameShape(n, o)) patch(moved, n, o, ops);
+                else {
+                    Node built = buildDom(n, ops);
+                    ops.replaceChild(parent, built, moved);
+                    dom.set(i, built);
+                }
+            } else if (isSameShape(n, o)) {
+                patch(existing, n, o, ops);
+            } else {
+                Node built = buildDom(n, ops);
+                ops.replaceChild(parent, built, existing);
+                dom.set(i, built);
+            }
         }
+        while (dom.size() > next.size()) {
+            ops.removeChild(parent, dom.remove(dom.size() - 1));
+        }
+    }
+
+    private static List<Node> snapshot(DomOps ops, Node parent) {
+        NodeList<? extends Node> nl = ops.childNodes(parent);
+        List<Node> snap = new ArrayList<>(nl.getLength());
+        for (int i = 0; i < nl.getLength(); i++) snap.add(nl.item(i));
+        return snap;
+    }
+
+    private static VNode indexIn(List<VNode> prev, Integer idx) {
+        return idx != null && idx < prev.size() ? prev.get(idx) : null;
     }
 
     private static boolean isSameShape(VNode n, VNode o) {
@@ -289,20 +337,19 @@ public final class Renderer {
         return a.tagName().equals(b.tagName()) && java.util.Objects.equals(a.key(), b.key());
     }
 
-    private static void patch(Node domNode, VNode next, VNode prev) {
+    private static void patch(Node domNode, VNode next, VNode prev, DomOps ops) {
         if (next instanceof TextVNode t) {
-            if (!t.text().equals(((TextVNode) prev).text())) domNode.setNodeValue(t.text());
+            if (!t.text().equals(((TextVNode) prev).text())) ops.setText(domNode, t.text());
             return;
         }
         ElementVNode ne = (ElementVNode) next, oe = (ElementVNode) prev;
-        HTMLElement el = (HTMLElement) domNode;
         for (String k : oe.props().keySet())
-            if (!ne.props().containsKey(k)) el.removeAttribute(k);
+            if (!ne.props().containsKey(k)) ops.removeAttribute(domNode, k);
         for (Map.Entry<String, String> p : ne.props().entrySet()) {
             String old = oe.props().get(p.getKey());
             if (!p.getValue().equals(old))
-                PropStrategies.forName(p.getKey()).apply(el, p.getKey(), p.getValue());
+                applyProp(ops, domNode, p.getKey(), p.getValue());
         }
-        updateChildren(el, ne.children(), oe.children());
+        updateChildren(domNode, ne.children(), oe.children(), ops);
     }
 }

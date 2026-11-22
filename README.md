@@ -30,9 +30,10 @@ render     =  walk Node tree once, diff old vs new, patch DOM
 ## Built-in UI library (`dev.jreact.ui`)
 
 Ready-made components for quick frontends. Styling is pluggable: call
-`Classnames.use(Classnames.css())` for plain CSS, or
-`Classnames.use(Classnames.tailwind())` for Tailwind utilities. Default is
-plain CSS.
+`Classnames.use(Classnames.css())` for plain CSS,
+`Classnames.use(Classnames.tailwind())` for Tailwind utilities, or
+`Classnames.use(Classnames.tea())` for a warm tea-party Tailwind theme
+(amber/cream/sage). Default is plain CSS.
 
 ```java
 Classnames.use(Classnames.tailwind());  // once at startup
@@ -66,6 +67,9 @@ in `dev.jreact.patterns` so the core stays uncluttered:
 - `dev.jreact.patterns.strategy.PropStrategies` (strategy dictionary) —
   attribute name to DOM write strategy (`value`/`checked` set properties,
   everything else `setAttribute`).
+- `dev.jreact.patterns.strategy.DomOps` (strategy) — every DOM mutation the
+  Renderer performs; `FakeDom` runs reconciliation headless on the JVM, used by
+  `src/test` so the virtual DOM itself is testable without a browser.
 - `dev.jreact.patterns.strategy.EffectScheduler` (strategy) — effect timing:
   `setTimeout(0)` in the browser, inline on the JVM.
 - `Query.Phase` (state machine) — `LOADING -> SUCCESS | ERROR`, one transition

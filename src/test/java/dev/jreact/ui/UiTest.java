@@ -54,6 +54,19 @@ class UiTest {
     }
 
     @Test
+    void teaThemeIsNamedAndWarm() {
+        Classnames.use(Classnames.tea());
+        assertTrue(Classnames.get().appShell().contains("amber-50"));
+        assertTrue(Classnames.get().btn("primary").contains("emerald-700"));
+        assertTrue(Classnames.get().card().contains("border-amber-200"));
+        assertTrue(Classnames.get().badge("warning").contains("yellow-300"));
+        // distinct from tailwind + css providers
+        assertFalse(Classnames.get().appShell().contains("gray-50"));
+        assertFalse(Classnames.get().btn("primary").contains("bg-blue-600"));
+        Classnames.use(Classnames.css());
+    }
+
+    @Test
     void uiPrimitivesBuildNodes() {
         assertEquals("button", ((ElementVNode) Ui.buttonPrimary("go", () -> {})).tagName());
         assertEquals("span", ((ElementVNode) Ui.badge("ok", "success")).tagName());

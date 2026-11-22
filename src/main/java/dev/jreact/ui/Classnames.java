@@ -60,6 +60,9 @@ public interface Classnames {
     /** Tailwind utility classnames; pair with the Tailwind CDN or build. */
     static Classnames tailwind() { return new TailwindClassnames(); }
 
+    /** Tea-party themed Tailwind classnames: warm browns, cream, sage. */
+    static Classnames tea() { return new TeaClassnames(); }
+
     /** Currently installed provider. */
     static Classnames get() { return Holder.current; }
 
