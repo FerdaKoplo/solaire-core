@@ -1,4 +1,6 @@
-package dev.jreact.dom;
+package dev.jreact.patterns.factory;
+
+import dev.jreact.dom.FC;
 
 import java.util.List;
 import java.util.Map;

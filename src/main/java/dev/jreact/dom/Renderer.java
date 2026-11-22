@@ -19,6 +19,9 @@ import dev.jreact.dom.nodes.ComponentVNode;
 import dev.jreact.dom.nodes.ElementVNode;
 import dev.jreact.dom.nodes.TextVNode;
 import dev.jreact.dom.nodes.VNode;
+import dev.jreact.patterns.factory.NodeFactory;
+import dev.jreact.patterns.strategy.EffectScheduler;
+import dev.jreact.patterns.strategy.PropStrategies;
 
 /**
  * Reconciliation. Two jobs:

@@ -1,4 +1,4 @@
-package dev.jreact.dom;
+package dev.jreact.patterns.observer;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

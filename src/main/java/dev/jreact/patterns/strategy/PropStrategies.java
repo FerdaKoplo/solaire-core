@@ -1,4 +1,4 @@
-package dev.jreact.dom;
+package dev.jreact.patterns.strategy;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,10 +10,10 @@ import org.teavm.jso.dom.html.HTMLInputElement;
  * Strategy per attribute name, held in a dictionary. Unknown names fall back to
  * setAttribute; input value/checked need property assignment.
  */
-final class PropStrategies {
+public final class PropStrategies {
 
     @FunctionalInterface
-    interface Strategy {
+    public interface Strategy {
         void apply(HTMLElement el, String name, String value);
     }
 
@@ -28,7 +28,7 @@ final class PropStrategies {
         BY_NAME.put("checked", INPUT_CHECKED);
     }
 
-    static Strategy forName(String name) { return BY_NAME.getOrDefault(name, SET_ATTRIBUTE); }
+    public static Strategy forName(String name) { return BY_NAME.getOrDefault(name, SET_ATTRIBUTE); }
 
     private PropStrategies() {}
 }

@@ -7,6 +7,9 @@ import org.junit.jupiter.api.Test;
 import dev.jreact.dom.nodes.ElementVNode;
 import dev.jreact.dom.nodes.TextVNode;
 import dev.jreact.dom.nodes.VNode;
+import dev.jreact.patterns.factory.NodeFactory;
+import dev.jreact.patterns.strategy.PropStrategies;
+import dev.jreact.patterns.strategy.RouteTable;
 
 import java.util.List;
 import java.util.Map;

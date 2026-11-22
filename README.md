@@ -29,23 +29,24 @@ render     =  walk Node tree once, diff old vs new, patch DOM
 
 ## Seams
 
-Extension points, all swappable without touching call sites:
+Extension points, all swappable without touching call sites. Pattern types live
+in `dev.jreact.patterns` so the core stays uncluttered:
 
-- `NodeFactory` (abstract factory) — how `El` builds `TextVNode`/
-  `ElementVNode`/`ComponentVNode`. Override for instrumentation or alternative
-  node types; set via `Renderer.setFactory`.
-- `RouteTable` (dictionary + strategy) — ordered pattern table with a
-  pluggable `RouteTable.Matcher`. Wired in `Router.setMatcher`, or construct a
-  table directly and `resolve(path)`.
-- `PropStrategies` (strategy dictionary) — attribute name to DOM write
-  strategy (`value`/`checked` set properties, everything else
-  `setAttribute`).
-- `EffectScheduler` (strategy) — effect timing: `setTimeout(0)` in the browser,
-  inline on the JVM.
+- `dev.jreact.patterns.factory.NodeFactory` (abstract factory) — how `El` builds
+  `TextVNode`/`ElementVNode`/`ComponentVNode`. Override for instrumentation or
+  alternative node types; set via `Renderer.setFactory`.
+- `dev.jreact.patterns.strategy.RouteTable` (dictionary + strategy) — ordered
+  pattern table with a pluggable `RouteTable.Matcher`. Wired in
+  `Router.setMatcher`, or construct a table directly and `resolve(path)`.
+- `dev.jreact.patterns.strategy.PropStrategies` (strategy dictionary) —
+  attribute name to DOM write strategy (`value`/`checked` set properties,
+  everything else `setAttribute`).
+- `dev.jreact.patterns.strategy.EffectScheduler` (strategy) — effect timing:
+  `setTimeout(0)` in the browser, inline on the JVM.
 - `Query.Phase` (state machine) — `LOADING -> SUCCESS | ERROR`, one transition
   per fetch result.
-- `Subscription` (observer) — `Entry.subscribe(observer)` returns a handle;
-  `unsubscribe()` detaches.
+- `dev.jreact.patterns.observer.Subscription` (observer) —
+  `Entry.subscribe(observer)` returns a handle; `unsubscribe()` detaches.
 - `Renderer.Instance` — per-tree-position slot list plus cleanup list; slots
   addressed by call order, disposed on unmount.
 

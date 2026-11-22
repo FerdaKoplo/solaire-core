@@ -5,6 +5,7 @@ import org.teavm.jso.dom.html.HTMLElement;
 
 import dev.jreact.dom.nodes.ElementVNode;
 import dev.jreact.dom.nodes.VNode;
+import dev.jreact.patterns.strategy.RouteTable;
 
 import java.util.ArrayList;
 import java.util.List;

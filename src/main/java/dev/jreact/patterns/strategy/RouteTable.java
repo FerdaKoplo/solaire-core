@@ -1,4 +1,6 @@
-package dev.jreact.dom;
+package dev.jreact.patterns.strategy;
+
+import dev.jreact.dom.Router;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

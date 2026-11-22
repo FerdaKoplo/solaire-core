@@ -1,6 +1,7 @@
 package dev.jreact.dom;
 
 import dev.jreact.dom.nodes.VNode;
+import dev.jreact.patterns.factory.NodeFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;

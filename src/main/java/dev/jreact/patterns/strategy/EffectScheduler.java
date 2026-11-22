@@ -1,4 +1,4 @@
-package dev.jreact.dom;
+package dev.jreact.patterns.strategy;
 
 import org.teavm.jso.browser.TimerHandler;
 import org.teavm.jso.browser.Window;

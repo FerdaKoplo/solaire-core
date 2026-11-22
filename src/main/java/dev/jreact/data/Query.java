@@ -11,7 +11,7 @@ import java.util.function.Function;
 
 import dev.jreact.dom.JReact;
 import dev.jreact.dom.Renderer;
-import dev.jreact.dom.Subscription;
+import dev.jreact.patterns.observer.Subscription;
 
 /**
  * Cache layer:
