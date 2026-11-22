@@ -1,232 +1,304 @@
 package dev.jreact.dom;
 
-import org.teavm.jso.dom.events.Event;
-import org.teavm.jso.dom.events.EventListener;
-import org.teavm.jso.dom.html.HTMLDocument;
-import org.teavm.jso.dom.html.HTMLElement;
-import org.teavm.jso.dom.xml.Node;
-import org.teavm.jso.dom.xml.NodeList;
-
-import dev.jreact.dom.nodes.ElementVNode;
-import dev.jreact.dom.nodes.TextVNode;
-import dev.jreact.dom.nodes.VNode;
-
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
+import java.util.function.Function;
 
-// what they actually used for? 
-// create real doms nodes from VNodes
-// diff old vs new VNodes and patch the DOM in place
+import org.teavm.jso.browser.Window;
+import org.teavm.jso.dom.events.Event;
+import org.teavm.jso.dom.html.HTMLDocument;
+import org.teavm.jso.dom.html.HTMLElement;
+import org.teavm.jso.dom.html.HTMLInputElement;
+import org.teavm.jso.dom.xml.Node;
+import org.teavm.jso.dom.xml.NodeList;
 
-public class Renderer {
+import dev.jreact.dom.nodes.ComponentVNode;
+import dev.jreact.dom.nodes.ElementVNode;
+import dev.jreact.dom.nodes.TextVNode;
+import dev.jreact.dom.nodes.VNode;
 
-    private Renderer() {
-    }
+/**
+ * Reconciliation. Two jobs:
+ *  1. resolve ComponentVNodes (call FC with a RenderScope) into elements
+ *  2. diff old vs new VNode trees, patch real DOM in place
+ *
+ * mental model:
+ *  - a component is a pure function (scope, props) -> Node
+ *  - state lives in State slots keyed by tree position; survives re-renders
+ *  - set() marks the app dirty; one render per microtask total (batching)
+ *  - ElementVNode with equal value -> DOM untouched (structural sharing)
+ */
+public final class Renderer {
 
-    // Debug switch: flip to true (or set from DevTools if exported) to trace diffs.
-    public static boolean DEBUG = true;
+    private Renderer() {}
 
     private static final HTMLDocument document = HTMLDocument.current();
 
-    private static final Map<Node, Map<String, EventListener<?>>> listenerRegistry = new WeakHashMap<>();
+    /** Component instances by tree path. Dropped when a path disappears (unmount). */
+    private static final Map<String, Instance> instances = new HashMap<>();
 
-    public static Node renderNode(VNode vnode) {
-        if (vnode instanceof TextVNode t) {
-            return document.createTextNode(t.text());
-        }
-        if (vnode instanceof ElementVNode e) {
-            HTMLElement element = document.createElement(e.tagName());
-
-            // Debug fingerprint: match this DOM node back to its VNode in DevTools.
-            if (DEBUG) {
-                element.setAttribute("data-vn", e.tagName() + (e.key() != null ? "#" + e.key() : "") + "@" + System.identityHashCode(e));
-            }
-
-            for (Map.Entry<String, String> prop : e.props().entrySet()) {
-                element.setAttribute(prop.getKey(), prop.getValue());
-            }
-
-            Map<String, EventListener<?>> attached = new HashMap<>();
-            for (Map.Entry<String, Runnable> ev : e.events().entrySet()) {
-                EventListener<Event> listener = evt -> ev.getValue().run();
-                element.addEventListener(ev.getKey(), listener);
-                attached.put(ev.getKey(), listener);
-            }
-            listenerRegistry.put(element, attached);
-
-            for (VNode child : e.children()) {
-                element.appendChild(renderNode(child));
-            }
-            return element;
-        }
-        // every ComponentVNode before Renderer sees the tree. If this fires, something
-        // skipped resolution.
-        throw new IllegalStateException("Unresolved ComponentVNode reached Renderer: " + vnode);
+    static final class Instance {
+        final List<State<?>> states = new ArrayList<>();
+        final List<Runnable> cleanups = new ArrayList<>();
     }
 
-    public static void mount(VNode vnode, HTMLElement container) {
+    /** Currently rendering scope (for library hooks like Query.use). */
+    private static final ThreadLocal<RenderScope> CURRENT = new ThreadLocal<>();
+
+    public static RenderScope currentScope() { return CURRENT.get(); }
+
+    // ---------- resolve: apply components, produce plain element/text tree ----------
+
+    @SuppressWarnings("unchecked")
+    static VNode resolve(VNode node, String path, Set<String> livePaths) {
+        if (node instanceof ComponentVNode<?> cvn) {
+            livePaths.add(path);
+            Instance inst = instances.computeIfAbsent(path, p -> new Instance());
+            RenderScope scope = new RenderScope(inst);
+            CURRENT.set(scope);
+            try {
+                VNode out = ((ComponentVNode<Object>) cvn).component().render(scope, cvn.componentProps());
+                return resolve(out, path + "/r", livePaths);
+            } finally {
+                CURRENT.remove();
+            }
+        }
+        if (node instanceof TextVNode) {
+            livePaths.add(path);
+            return node;
+        }
+        if (node instanceof ElementVNode e) {
+            livePaths.add(path);
+            List<VNode> kids = new ArrayList<>(e.children().size());
+            for (int i = 0; i < e.children().size(); i++) {
+                VNode c = e.children().get(i);
+                String id = c.key() != null ? c.key() : String.valueOf(i);
+                kids.add(resolve(c, path + "/" + id, livePaths));
+            }
+            return e.withChildren(kids);
+        }
+        throw new IllegalStateException("Unknown node type: " + node.getClass());
+    }
+
+    /**
+     * Handed to every component render. use(initial) allocates/reuses a state
+     * slot; call order is the slot identity (rules-of-hooks: call unconditionally,
+     * same order every render).
+     */
+    public static final class RenderScope {
+        private final Instance inst;
+        private int cursor;
+
+        RenderScope(Instance inst) { this.inst = inst; }
+
+        /** useState: one cell per call position. */
+        public <T> State<T> use(T initial) {
+            if (cursor < inst.states.size()) {
+                @SuppressWarnings("unchecked") State<T> s = (State<T>) inst.states.get(cursor++);
+                return s;
+            }
+            State<T> s = new State<>(initial, JReact::requestRender);
+            inst.states.add(s);
+            cursor++;
+            return s;
+        }
+
+        public <T> State<T> useState(T initial) { return use(initial); }
+
+        /** useRef: mutable box that never triggers re-render. */
+        public <T> Ref<T> useRef(T initial) {
+            State<Ref<T>> s = use(new Ref<>(initial));
+            return s.get();
+        }
+
+        /** Derived value recomputed when deps change (useMemo). */
+        public <T> T useMemo(Function<Object[], T> compute, Object... deps) {
+            State<MemoBox<T>> s = use(new MemoBox<>());
+            return s.get().compute(compute, deps);
+        }
+
+        public void useEffect(Runnable effect, Object... deps) {
+            useEffect(() -> { effect.run(); return null; }, deps);
+        }
+
+        /** Effect with optional cleanup, deferred to after paint. In the browser
+         * this is setTimeout(0); on the JVM (tests) it runs inline. */
+        public void useEffect(EffectCallback effect, Object... deps) {
+            State<EffectBox> s = use(new EffectBox());
+            s.get().run(effect, deps);
+        }
+
+        /** Register cleanup to run if this component unmounts. */
+        public void onCleanup(Runnable cleanup) {
+            inst.cleanups.add(cleanup);
+        }
+    }
+
+    public static final class Ref<T> {
+        public T current;
+        Ref(T v) { this.current = v; }
+    }
+
+    @FunctionalInterface
+    public interface EffectCallback {
+        /** Return cleanup or null. */
+        Runnable invoke();
+    }
+
+    static final class MemoBox<T> {
+        private T value;
+        private Object[] deps;
+        private boolean init;
+
+        T compute(Function<Object[], T> fn, Object... d) {
+            if (!init || !java.util.Arrays.equals(deps, d)) {
+                value = fn.apply(d);
+                deps = java.util.Arrays.copyOf(d, d.length);
+                init = true;
+            }
+            return value;
+        }
+    }
+
+    static final class EffectBox {
+        private Object[] deps;
+        private Runnable cleanup;
+        private boolean init;
+        private boolean disposed;
+
+        private static final boolean IN_BROWSER =
+                System.getProperty("java.vm.name", "").toLowerCase().contains("machine")
+                        && org.teavm.jso.browser.Window.current() != null;
+
+        void run(EffectCallback effect, Object... d) {
+            if (init && java.util.Arrays.equals(deps, d)) return;
+            deps = java.util.Arrays.copyOf(d, d.length);
+            init = true;
+            disposed = false;
+            if (IN_BROWSER) {
+                Window.setTimeout(() -> {
+                    if (disposed) return;
+                    if (cleanup != null) cleanup.run();
+                    cleanup = effect.invoke();
+                }, 0);
+            } else {
+                if (disposed) return;
+                if (cleanup != null) cleanup.run();
+                cleanup = effect.invoke();
+            }
+        }
+
+        void dispose() {
+            disposed = true;
+            if (cleanup != null) { cleanup.run(); cleanup = null; }
+        }
+    }
+
+    /** Unmount all instances not in livePaths (component removed from tree). */
+    static void gc(Set<String> livePaths) {
+        for (String path : List.copyOf(instances.keySet())) {
+            if (!livePaths.contains(path)) {
+                Instance inst = instances.remove(path);
+                if (inst == null) continue;
+                for (State<?> s : inst.states)
+                    if (s.rawValue() instanceof EffectBox eb) eb.dispose();
+                for (Runnable c : inst.cleanups) c.run();
+                inst.cleanups.clear();
+            }
+        }
+    }
+
+    // ---------- DOM build + patch ----------
+
+    static void mount(VNode node, HTMLElement container) {
         container.setInnerHTML("");
-        container.appendChild(renderNode(vnode));
+        container.appendChild(buildDom(node));
     }
 
-    public static void updateElement(Node parent, VNode newNode, VNode oldNode, int index) {
-        NodeList<? extends Node> childNodes = parent.getChildNodes();
+    static void update(HTMLElement container, VNode next, VNode prev) {
+        updateChildren(container, List.of(next), prev == null ? List.of() : List.of(prev));
+    }
 
-        if (oldNode == null) {
-            // Insert at `index`, not append: growth in the middle/end must keep order.
-            Node ref = index < childNodes.getLength() ? childNodes.item(index) : null;
-            parent.insertBefore(renderNode(newNode), ref);
-        } else if (newNode == null) {
-            parent.removeChild(childNodes.item(index));
-        } else if (isChanged(newNode, oldNode)) {
-            parent.replaceChild(renderNode(newNode), childNodes.item(index));
-        } else if (newNode instanceof ElementVNode newE && oldNode instanceof ElementVNode oldE) {
-            Node domElement = childNodes.item(index);
-            patchProps((HTMLElement) domElement, newE, oldE);
-            updateChildren(domElement, newE.children(), oldE.children());
+    private static Node buildDom(VNode node) {
+        if (node instanceof TextVNode t) return document.createTextNode(t.text());
+        ElementVNode e = (ElementVNode) node;
+        HTMLElement el = document.createElement(e.tagName());
+        for (Map.Entry<String, String> p : e.props().entrySet()) applyProp(el, p.getKey(), p.getValue());
+        for (Map.Entry<String, Runnable> ev : e.events().entrySet()) {
+            el.addEventListener(ev.getKey(), evt -> dispatch(ev.getValue(), evt));
+        }
+        for (VNode c : e.children()) el.appendChild(buildDom(c));
+        return el;
+    }
+
+    private static void dispatch(Runnable handler, Event evt) {
+        Attr.setCurrentEvent(evt);
+        if (evt != null && evt.getTarget() instanceof HTMLInputElement input) {
+            Attr.setLastInput(input.getValue());
+        }
+        try { handler.run(); }
+        finally {
+            Attr.clearLastInput();
+            Attr.clearCurrentEvent();
         }
     }
 
-    private static void updateChildren(Node parent, List<VNode> newChildren, List<VNode> oldChildren) {
-        // Keyed path only when BOTH sides are fully keyed. Mixed keyed/unkeyed
-        // would put null keys in the map, so fall back to positional reconcile.
-        boolean keyed = !oldChildren.isEmpty() && allKeyed(oldChildren) && allKeyed(newChildren);
+    private static void applyProp(HTMLElement el, String name, String value) {
+        if (value == null) { el.removeAttribute(name); return; }
+        if ("value".equals(name) && el instanceof HTMLInputElement input) { input.setValue(value); return; }
+        if ("checked".equals(name) && el instanceof HTMLInputElement input) { input.setChecked(true); return; }
+        el.setAttribute(name, value);
+    }
 
-        if (DEBUG) {
-            JSConsole.log("UPDATE parent=" + parent.getNodeName()
-                    + " keyed=" + keyed
-                    + " old=" + keys(oldChildren)
-                    + " new=" + keys(newChildren));
+    private static void updateChildren(Node parent, List<VNode> next, List<VNode> prev) {
+        Map<String, Integer> prevByKey = new HashMap<>();
+        for (int i = 0; i < prev.size(); i++) {
+            VNode c = prev.get(i);
+            if (c.key() != null) prevByKey.put(c.key(), i);
         }
+        NodeList<? extends Node> dom = parent.getChildNodes();
+        for (int i = 0; i < next.size(); i++) {
+            VNode n = next.get(i);
+            Integer oldIdx = n.key() != null ? prevByKey.get(n.key()) : (i < prev.size() ? i : null);
+            Node existing = i < dom.getLength() ? dom.item(i) : null;
+            VNode o = oldIdx != null && oldIdx < prev.size() ? prev.get(oldIdx) : null;
+            if (o == null) {
+                parent.insertBefore(buildDom(n), existing);
+            } else if (isSameShape(n, o)) {
+                patch(existing, n, o);
+            } else {
+                parent.replaceChild(buildDom(n), existing);
+            }
+        }
+        while (parent.getChildNodes().getLength() > next.size()) {
+            parent.removeChild(parent.getChildNodes().item(parent.getChildNodes().getLength() - 1));
+        }
+    }
 
-        if (!keyed) {
-            updateChildrenByIndex(parent, newChildren, oldChildren);
+    private static boolean isSameShape(VNode n, VNode o) {
+        if (n instanceof TextVNode || o instanceof TextVNode)
+            return n instanceof TextVNode && o instanceof TextVNode;
+        ElementVNode a = (ElementVNode) n, b = (ElementVNode) o;
+        return a.tagName().equals(b.tagName()) && java.util.Objects.equals(a.key(), b.key());
+    }
+
+    private static void patch(Node domNode, VNode next, VNode prev) {
+        if (next instanceof TextVNode t) {
+            if (!t.text().equals(((TextVNode) prev).text())) domNode.setNodeValue(t.text());
             return;
         }
-
-        // Old DOM nodes keyed by VNode key, captured BEFORE any mutation. => im honestly have no idea, just something i asked from deepseek
-        // insertBefore moves existing nodes, so positions shift as we go.
-        Map<String, VNode> oldVNodeByKey = new HashMap<>();
-        Map<String, Node> oldDomByKey = new HashMap<>();
-        NodeList<? extends Node> domChildren = parent.getChildNodes();
-        for (int i = 0; i < oldChildren.size(); i++) {
-            String key = oldChildren.get(i).key();
-            if (oldVNodeByKey.put(key, oldChildren.get(i)) != null) {
-                throw new IllegalStateException("Duplicate key '" + key + "' in <" + parent.getNodeName() + "> children — keys must be unique per sibling list");
-            }
-            oldDomByKey.put(key, domChildren.item(i));
+        ElementVNode ne = (ElementVNode) next, oe = (ElementVNode) prev;
+        HTMLElement el = (HTMLElement) domNode;
+        for (String k : oe.props().keySet())
+            if (!ne.props().containsKey(k)) el.removeAttribute(k);
+        for (Map.Entry<String, String> p : ne.props().entrySet()) {
+            String old = oe.props().get(p.getKey());
+            if (!p.getValue().equals(old)) applyProp(el, p.getKey(), p.getValue());
         }
-
-        Set<String> reusedKeys = new HashSet<>();
-        Node refNode = null;
-        for (int i = newChildren.size() - 1; i >= 0; i--) {
-            VNode newChild = newChildren.get(i);
-            String key = newChild.key();
-            VNode oldChild = oldVNodeByKey.get(key);
-            // If reconcile builds a FRESH node (old missing, or tag/text changed),
-            // the old DOM node for this key must be removed later, not kept.
-            boolean fresh = oldChild == null || isChanged(newChild, oldChild);
-            Node domNode = reconcile(parent, newChild, oldChild, oldDomByKey.get(key));
-            if (!fresh)
-                reusedKeys.add(key);
-            parent.insertBefore(domNode, refNode);
-            refNode = domNode;
-        }
-
-        for (Map.Entry<String, Node> old : oldDomByKey.entrySet()) {
-            if (!reusedKeys.contains(old.getKey()) && old.getValue().getParentNode() == parent) {
-                parent.removeChild(old.getValue());
-            }
-        }
+        updateChildren(el, ne.children(), oe.children());
     }
-
-    private static boolean allKeyed(List<VNode> children) {
-        for (VNode c : children) {
-            if (c.key() == null) return false;
-        }
-        return true;
-    }
-
-    private static String keys(List<VNode> children) {
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < children.size(); i++) {
-            if (i > 0) sb.append(",");
-            VNode c = children.get(i);
-            sb.append(c.key() != null ? c.key() : "#" + i);
-            if (c instanceof TextVNode t) sb.append(":'").append(t.text()).append("'");
-        }
-        return sb.append("]").toString();
-    }
-
-    private static Node reconcile(Node parent, VNode newChild, VNode oldChild, Node oldDom) {
-        if (oldChild == null) {
-            return renderNode(newChild);
-        }
-        if (isChanged(newChild, oldChild)) {
-            return renderNode(newChild);
-        }
-        if (newChild instanceof ElementVNode newE && oldChild instanceof ElementVNode oldE) {
-            patchProps((HTMLElement) oldDom, newE, oldE);
-            updateChildren(oldDom, newE.children(), oldE.children());
-        }
-        return oldDom;
-    }
-
-    private static void updateChildrenByIndex(Node parent, List<VNode> newChildren, List<VNode> oldChildren) {
-        int newLength = newChildren.size();
-        int oldLength = oldChildren.size();
-        for (int i = 0; i < newLength; i++) {
-            updateElement(parent, newChildren.get(i), i < oldLength ? oldChildren.get(i) : null, i);
-        }
-        NodeList<? extends Node> childNodes = parent.getChildNodes();
-        while (childNodes.getLength() > newLength) {
-            parent.removeChild(childNodes.item(childNodes.getLength() - 1));
-        }
-    }
-
-    private static boolean isChanged(VNode node1, VNode node2) {
-        if (node1 instanceof TextVNode t1 && node2 instanceof TextVNode t2) {
-            return !t1.text().equals(t2.text());
-        }
-        if (node1 instanceof ElementVNode e1 && node2 instanceof ElementVNode e2) {
-            return !e1.tagName().equals(e2.tagName());
-        }
-        return true;
-    }
-
-    private static void patchProps(HTMLElement element, ElementVNode newNode, ElementVNode oldNode) {
-        for (String key : oldNode.props().keySet()) {
-            if (!newNode.props().containsKey(key)) {
-                element.removeAttribute(key);
-            }
-        }
-        for (Map.Entry<String, String> entry : newNode.props().entrySet()) {
-            String oldVal = oldNode.props().get(entry.getKey());
-            if (!entry.getValue().equals(oldVal)) {
-                element.setAttribute(entry.getKey(), entry.getValue());
-            }
-        }
-
-        Map<String, EventListener<?>> attached = listenerRegistry.computeIfAbsent(element, k -> new HashMap<>());
-        for (Map.Entry<String, EventListener<?>> entry : new HashMap<>(attached).entrySet()) {
-            if (!newNode.events().containsKey(entry.getKey())) {
-                element.removeEventListener(entry.getKey(), entry.getValue());
-                attached.remove(entry.getKey());
-            }
-        }
-        for (Map.Entry<String, Runnable> entry : newNode.events().entrySet()) {
-            EventListener<?> old = attached.get(entry.getKey());
-            if (old != null) {
-                element.removeEventListener(entry.getKey(), old);
-            }
-            EventListener<Event> listener = evt -> entry.getValue().run();
-            element.addEventListener(entry.getKey(), listener);
-            attached.put(entry.getKey(), listener);
-        }
-    }
-
 }
