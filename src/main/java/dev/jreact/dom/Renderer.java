@@ -16,6 +16,7 @@ import org.teavm.jso.dom.xml.NodeList;
 
 import dev.jreact.dom.nodes.ComponentVNode;
 import dev.jreact.dom.nodes.ElementVNode;
+import dev.jreact.dom.nodes.ProviderVNode;
 import dev.jreact.dom.nodes.TextVNode;
 import dev.jreact.dom.nodes.VNode;
 import dev.jreact.patterns.factory.NodeFactory;
@@ -81,6 +82,21 @@ public final class Renderer {
 
     public static RenderScope currentScope() { return CURRENT.get(); }
 
+    /** Context values pushed by enclosing Providers while resolving. */
+    private static final ThreadLocal<java.util.Map<Context<?>, Object>> CONTEXT =
+            ThreadLocal.withInitial(java.util.HashMap::new);
+
+    static java.util.Map<Context<?>, Object> contextStack() { return CONTEXT.get(); }
+
+    static void clearContext() { CONTEXT.get().clear(); }
+
+    @SuppressWarnings("unchecked")
+    private static Object restoreContext(Object prev, Context<?> ctx) {
+        if (prev == null) CONTEXT.get().remove(ctx);
+        else CONTEXT.get().put((Context<Object>) ctx, prev);
+        return prev;
+    }
+
     @SuppressWarnings("unchecked")
     static VNode resolve(VNode node, String path, Set<String> livePaths) {
         if (node instanceof ComponentVNode<?> cvn) {
@@ -93,6 +109,16 @@ public final class Renderer {
                 return resolve(out, path + "/r", livePaths);
             } finally {
                 CURRENT.remove();
+            }
+        }
+        if (node instanceof ProviderVNode<?> pv) {
+            livePaths.add(path);
+            Context<?> ctx = pv.context();
+            Object prev = CONTEXT.get().put((Context<Object>) ctx, pv.value());
+            try {
+                return resolve(pv.children().get(), path + "/c", livePaths);
+            } finally {
+                restoreContext(prev, ctx);
             }
         }
         if (node instanceof TextVNode) {
@@ -155,6 +181,12 @@ public final class Renderer {
         /** Register cleanup to run if this component unmounts. */
         public void onCleanup(Runnable cleanup) {
             inst.onCleanup(cleanup);
+        }
+
+        /** Nearest Provider value above, or Context.defaultValue(). */
+        public <T> T useContext(Context<T> context) {
+            Object v = CONTEXT.get().get(context);
+            return v == null ? context.defaultValue() : (T) v;
         }
     }
 

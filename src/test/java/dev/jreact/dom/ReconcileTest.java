@@ -196,4 +196,37 @@ public class ReconcileTest {
     void domOpsDefaultIsFakeDomOnJvm() {
         assertSame(DomOps.get().getClass(), FakeDom.class);
     }
+
+    @Test
+    void listHelperAttachesKeysAndRenders() {
+        FakeDom fake = fake();
+        FakeDom.FakeNode container = element(fake, "ul");
+        VNode tree = resolve(El.list("ul",
+                java.util.List.of("a", "b", "c"),
+                s -> "k-" + s,
+                s -> El.h("li", null, s)));
+
+        Renderer.mount(tree, container);
+        FakeDom.FakeNode ul = child(fake.root, 0);
+        assertEquals(3, ul.children.size());
+        assertEquals("a", textOf(child(child(ul, 0), 0)));
+        assertEquals("c", textOf(child(child(ul, 2), 0)));
+    }
+
+    @Test
+    void providerFeedsUseContextAndFallsBackToDefault() {
+        FakeDom fake = fake();
+        FakeDom.FakeNode container = element(fake, "div");
+        Context<String> Theme = Context.of("light");
+
+        FC.NoProps read = scope -> El.h("span", null, scope.useContext(Theme));
+        VNode inside = resolve(El.div(null,
+                El.provider(Theme, "dark", () -> El.component(read, null)),
+                El.component(read, null)));
+
+        Renderer.mount(inside, container);
+        FakeDom.FakeNode div = child(fake.root, 0);
+        assertEquals("dark", textOf(child(child(div, 0), 0)));
+        assertEquals("light", textOf(child(child(div, 1), 0)));
+    }
 }

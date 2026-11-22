@@ -58,9 +58,13 @@ state), `Tabs`, `Modal`, `FormField`, and `Ui` primitives (`button`,
 Extension points, all swappable without touching call sites. Pattern types live
 in `dev.jreact.patterns` so the core stays uncluttered:
 
-- `dev.jreact.patterns.factory.NodeFactory` (abstract factory) — how `El` builds
-  `TextVNode`/`ElementVNode`/`ComponentVNode`. Override for instrumentation or
-  alternative node types; set via `Renderer.setFactory`.
+- `dev.jreact.patterns.factory.NodeFactory` (abstract factory) — how `El`
+  builds `TextVNode`/`ElementVNode`/`ComponentVNode`. Override via
+  `Renderer.setFactory`, restoring the default with `null`.
+- `dev.jreact.dom.Context` — dependency injection down the tree:
+  `El.provider(context, value, () -> child)` publishes a value any
+  descendant withdraws with `scope.useContext(context)`; contexts with no
+  Provider above fall back to `Context.of(default)`.
 - `dev.jreact.patterns.strategy.RouteTable` (dictionary + strategy) — ordered
   pattern table with a pluggable `RouteTable.Matcher`. Wired in
   `Router.setMatcher`, or construct a table directly and `resolve(path)`.
@@ -82,6 +86,9 @@ in `dev.jreact.patterns` so the core stays uncluttered:
 ## Write a screen
 
 Two call styles. Pick one per file; they produce identical nodes and can mix.
+`El.list(tag, items, key, render)` builds a keyed repeatable (keys keep the
+reconciler's move-not-rebuild path); `El.provider(...)` / `scope.useContext(...)`
+share values without prop drilling.
 
 Fluent builder (`H`) — reads like nested HTML, one line per level:
 

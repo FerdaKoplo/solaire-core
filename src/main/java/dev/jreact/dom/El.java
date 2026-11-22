@@ -1,13 +1,15 @@
 package dev.jreact.dom;
 
+import dev.jreact.dom.Context;
+import dev.jreact.dom.nodes.ProviderVNode;
 import dev.jreact.dom.nodes.VNode;
-import dev.jreact.patterns.factory.NodeFactory;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The JSX layer. Everything you need to build UI lives here: tags, forms,
@@ -22,7 +24,7 @@ public final class El {
 
     /** Raw element: exact control over tag/key/props/events. */
     public static VNode h(String tag, Attr attrs, VNode... children) {
-        return NodeFactory.getDefault().element(tag,
+        return Renderer.factory().element(tag,
                 attrs == null ? null : attrs.key(),
                 attrs == null ? Map.of() : attrs.props(),
                 attrs == null ? Map.of() : attrs.events(),
@@ -32,6 +34,27 @@ public final class El {
     /** Tag + attrs + loose children (Strings wrap in text nodes). */
     public static VNode h(String tag, Attr attrs, Object... children) {
         return h(tag, attrs, toNodes(children));
+    }
+
+    /**
+     * Repeatable list with a stable key per item.
+     *
+     *   El.list("ul", users, u -> "u" + u.id(), u -> El.li(null, u.name()))
+     *
+     * render is null -> the item becomes a text/node child itself. key is
+     * null -> children stay keyless (positional).
+     */
+    public static VNode list(String tag, Iterable<?> items, Function<Object, String> key,
+                             Function<Object, VNode> render) {
+        List<VNode> kids = new ArrayList<>();
+        if (items != null) {
+            for (Object item : items) {
+                VNode child = render == null ? toNode(item) : render.apply(item);
+                String k = key == null ? null : key.apply(item);
+                kids.add(k == null ? child : child.withKey(k));
+            }
+        }
+        return h(tag, null, kids.toArray(new VNode[0]));
     }
 
     public static VNode[] toNodes(Object... raw) {
@@ -53,24 +76,29 @@ public final class El {
 
     /** Multiple roots without a wrapper element (rendered inline). */
     public static VNode frag(VNode... children) {
-        return NodeFactory.getDefault().element("#frag", null, Map.of(), Map.of(), List.of(children));
+        return Renderer.factory().element("#frag", null, Map.of(), Map.of(), List.of(children));
     }
 
     public static VNode frag(List<VNode> children) {
-        return NodeFactory.getDefault().element("#frag", null, Map.of(), Map.of(), children);
+        return Renderer.factory().element("#frag", null, Map.of(), Map.of(), children);
     }
 
     public static VNode text(Object value) {
-        return NodeFactory.getDefault().text(value == null ? "" : value.toString());
+        return Renderer.factory().text(value == null ? "" : value.toString());
     }
 
     /** Declare a component usage (resolved by Renderer, key keeps state). */
     public static <P> VNode component(FC<P> fc, P props, String key) {
-        return NodeFactory.getDefault().component(fc, props, key);
+        return Renderer.factory().component(fc, props, key);
+    }
+
+    /** Publish a value to the subtree beneath (read with scope.useContext). */
+    public static <T> VNode provider(Context<T> context, T value, Supplier<VNode> children) {
+        return new ProviderVNode<>(context, value, children);
     }
 
     public static <P> VNode component(FC<P> fc, P props) {
-        return NodeFactory.getDefault().component(fc, props, null);
+        return Renderer.factory().component(fc, props, null);
     }
 
     public static VNode div(Attr a, Object... c) { return h("div", a, c); }

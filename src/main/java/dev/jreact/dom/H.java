@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 import dev.jreact.dom.nodes.VNode;
-import dev.jreact.patterns.factory.NodeFactory;
 
 /**
  * Element builder that reads like nested HTML: an open tag, indented children,
@@ -20,9 +19,8 @@ import dev.jreact.patterns.factory.NodeFactory;
  *       el("button").onClick(() -> count.set(0)).kids("reset")
  *   ).end();
  *
- * kid() appends one child (text or node); kids() appends many. Every call
- * returns a new H (immutable), so attributes can be added at any point.
- * Node value semantics are unchanged: thin alias over NodeFactory.
+ * same call style. Immutable builder; node construction goes through the
+ * active {@link Renderer#factory()} (default: NodeFactory.getDefault()).
  */
 public final class H {
 
@@ -88,6 +86,6 @@ public final class H {
     public H key(String key) { return new H(tag, key, props, events, children); }
 
     public VNode end() {
-        return NodeFactory.getDefault().element(tag, key, props, events, List.copyOf(children));
+        return Renderer.factory().element(tag, key, props, events, List.copyOf(children));
     }
 }

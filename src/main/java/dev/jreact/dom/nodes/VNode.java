@@ -8,8 +8,11 @@ package dev.jreact.dom.nodes;
  * Only ElementVNode carries props/children; TextVNode and ComponentVNode are
  * leaves from the tree's point of view (components resolve before diffing).
  */
-public sealed interface VNode permits TextVNode, ElementVNode, ComponentVNode {
+public sealed interface VNode permits TextVNode, ElementVNode, ComponentVNode, ProviderVNode {
 
     /** Reconcile identity within a sibling list. Null = positional. */
     String key();
+
+    /** Copy with a different key, or this node when it has none. */
+    default VNode withKey(String key) { return this; }
 }

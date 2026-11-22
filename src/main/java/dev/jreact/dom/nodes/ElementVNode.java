@@ -39,6 +39,11 @@ public final class ElementVNode implements VNode {
         return new ElementVNode(tagName, key, props, events, next);
     }
 
+    /** Copy with a different key, or this node when it has none. */
+    @Override public ElementVNode withKey(String k) {
+        return k == null || java.util.Objects.equals(k, key) ? this : new ElementVNode(tagName, k, props, events, children);
+    }
+
     public String tagName() { return tagName; }
     @Override public String key() { return key; }
     public Map<String, String> props() { return props; }
