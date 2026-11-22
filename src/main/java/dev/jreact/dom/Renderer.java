@@ -51,7 +51,7 @@ public final class Renderer {
     public static NodeFactory factory() { return factory; }
 
     /** Per-tree-position state: hook slots plus cleanup callbacks. */
-    static final class Instance {
+    public static final class Instance {
         private final List<State<?>> states = new ArrayList<>();
         private final List<Runnable> cleanups = new ArrayList<>();
 
@@ -70,7 +70,7 @@ public final class Renderer {
             cleanups.clear();
         }
 
-        List<State<?>> statesView() { return states; }
+        public List<State<?>> statesView() { return states; }
 
         @SuppressWarnings("unchecked")
         private static <T> State<T> cast(State<?> s) { return (State<T>) s; }
@@ -121,7 +121,7 @@ public final class Renderer {
         private final Instance inst;
         private int cursor;
 
-        RenderScope(Instance inst) { this.inst = inst; }
+        public RenderScope(Instance inst) { this.inst = inst; }
 
         /** useState: one cell per call position. */
         public <T> State<T> use(T initial) {

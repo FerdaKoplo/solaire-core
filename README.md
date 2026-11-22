@@ -27,6 +27,31 @@ render     =  walk Node tree once, diff old vs new, patch DOM
   - `dev.jreact.data.Http` — fetch wrapper (GET/POST/PUT/PATCH/DELETE)
   - `dev.jreact.dom.State` — app-scoped observable cells
 
+## Built-in UI library (`dev.jreact.ui`)
+
+Ready-made components for quick frontends. Styling is pluggable: call
+`Classnames.use(Classnames.css())` for plain CSS, or
+`Classnames.use(Classnames.tailwind())` for Tailwind utilities. Default is
+plain CSS.
+
+```java
+Classnames.use(Classnames.tailwind());  // once at startup
+
+JReact.mount((scope, props) -> AppShell.appShell(scope, "Admin",
+        List.of(AppShell.NavItem.item("/users", "Users")),
+        () -> Ui.card("Users",
+            DataTable.table(
+                List.of(DataTable.Col.of("Name", u -> u.name()),
+                        DataTable.Col.of("Role", u -> Ui.badge(u.role(), "success"))),
+                users, "No users yet"),
+            Ui.buttonPrimary("Add user", () -> open.set(true))),
+), document.getElementById("app"));
+```
+
+Components: `AppShell` (sidebar + main), `DataTable` (columns/rows/empty
+state), `Tabs`, `Modal`, `FormField`, and `Ui` primitives (`button`,
+`buttonPrimary`, `buttonDanger`, `card`, `badge`, `spinner`, `empty`, `toast`).
+
 ## Seams
 
 Extension points, all swappable without touching call sites. Pattern types live
