@@ -18,6 +18,9 @@ All notable changes to this project are documented here. Format follows
 - `Classnames.tea()` — warm amber/cream/sage "tea party" Tailwind theme.
 - CI: `.github/workflows/ci.yml` runs `./gradlew test` on push/PR.
 - MIT license.
+- `EffectScheduler` is now a proper seam: `EffectScheduler.use(...)`
+  overrides effect scheduling (tests queue manually), `null` restores the
+  default (async after paint in browser, inline on the JVM).
 
 ### Fixed
 - Keyed sibling reorder now moves DOM nodes instead of patching by index.

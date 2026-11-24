@@ -5,7 +5,8 @@ import org.teavm.jso.browser.Window;
 
 /**
  * Strategy for effect timing. Browser: after paint (setTimeout 0). JVM/tests:
- * inline. Selected by {@link #get()}.
+ * inline. Selected by {@link #get()}; {@link #use} overrides (pass null to
+ * restore the default).
  */
 public interface EffectScheduler {
 
@@ -15,13 +16,24 @@ public interface EffectScheduler {
         Window.setTimeout((TimerHandler) body::run, delayMs);
     }
 
-    static EffectScheduler get() {
-        if (isBrowser()) return body -> setTimeout(body, 0);
-        return Runnable::run;
-    }
+    static EffectScheduler get() { return Holder.current(); }
+
+    /** Override; pass null to restore the default (async in browser, inline on JVM). */
+    static void use(EffectScheduler next) { Holder.current = next; }
 
     static boolean isBrowser() {
         return System.getProperty("java.vm.name", "").toLowerCase().contains("machine")
                 && Window.current() != null;
+    }
+
+    final class Holder {
+        private static EffectScheduler current;
+
+        private Holder() {}
+
+        private static EffectScheduler current() {
+            if (current == null) current = isBrowser() ? body -> setTimeout(body, 0) : Runnable::run;
+            return current;
+        }
     }
 }
