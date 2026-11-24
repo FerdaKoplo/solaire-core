@@ -21,6 +21,10 @@ All notable changes to this project are documented here. Format follows
 - `EffectScheduler` is now a proper seam: `EffectScheduler.use(...)`
   overrides effect scheduling (tests queue manually), `null` restores the
   default (async after paint in browser, inline on the JVM).
+- `Query.useStore(Store)` / `getStore()` — cache + clock swapped per store;
+  `null` restores the default (fresh cache, system clock). Cache entries use
+  `store.now()` instead of `System.currentTimeMillis()` so tests control
+  staleness deterministically.
 
 ### Fixed
 - Keyed sibling reorder now moves DOM nodes instead of patching by index.
