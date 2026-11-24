@@ -58,21 +58,17 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
-      - name: Write Central Portal credentials
-        run: |
-          {
-            echo "mavenCentralUsername=${{ secrets.CENTRAL_USERNAME }}"
-            echo "mavenCentralPassword=${{ secrets.CENTRAL_PASSWORD }}"
-          } >> gradle.properties
-      - name: Write in-memory signing key
-        if: secrets.CENTRAL_SIGNING_KEY != ''
-        run: |
-          printf 'signingInMemoryKey=%s\n' "${{ secrets.CENTRAL_SIGNING_KEY }}" >> gradle.properties
-          printf 'signingInMemoryKeyPassword=%s\n' "${{ secrets.CENTRAL_SIGNING_KEY_PASSWORD }}" >> gradle.properties
+      # Secrets never touch gradle.properties. Gradle maps ORG_GRADLE_PROJECT_*
+      # env vars to project properties, which is what the plugin reads.
       - name: Publish
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.CENTRAL_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.CENTRAL_SIGNING_KEY_PASSWORD }}
         run: |
           if [ "${{ github.event.inputs.publish }}" = "false" ]; then
-            ./gradlew publishToMavenCentral --console=plain
+            ./gradlew publishToMavenCentral --console=plain --no-daemon
           else
-            ./gradlew publishAndReleaseToMavenCentral --console=plain
+            ./gradlew publishAndReleaseToMavenCentral --console=plain --no-daemon
           fi
