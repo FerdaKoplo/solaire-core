@@ -26,6 +26,8 @@ All notable changes to this project are documented here. Format follows
   `store.now()` instead of `System.currentTimeMillis()` so tests control
   staleness deterministically.
 
+### Changed
+- Automatic publishing: `.github/workflows/publish.yml` runs `test` -> `com.vanniktech.maven.publish` to the Sonatype Central Publisher Portal when a GitHub release is created (auto-publishes to Maven Central after validation passes; set the `publish` dispatch input to `false` to stage instead). `gradle.properties` documents signing/token env (never hardcoded); `POM_*` props feed the generated POM.
 ### Fixed
 - Keyed sibling reorder now moves DOM nodes instead of patching by index.
 - `Renderer.setFactory` previously no-op: `El`/`H` hardcoded

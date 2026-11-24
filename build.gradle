@@ -6,12 +6,12 @@
  * This project uses @Incubating APIs which are subject to change.
  */
 
-
 plugins {
     id 'java'
     id 'java-library'
     id 'maven-publish'
     id 'org.teavm' version '0.15.0'
+    id 'com.vanniktech.maven.publish' version '0.37.0'
 }
 
 group = 'dev.jreact'
@@ -48,3 +48,35 @@ testing {
     }
 }
 
+mavenPublishing {
+    publishToMavenCentral()
+    if (providers.gradleProperty('signingInMemoryKey').isPresent()) {
+        signAllPublications()
+    }
+    coordinates(group.toString(), base.archivesName.get(), version.toString())
+    pom {
+        name.set(providers.gradleProperty('POM_NAME').orElse('solaire-core'))
+        description.set(providers.gradleProperty('POM_DESCRIPTION').orElse('A small React-shaped UI core for TeaVM.'))
+        inceptionYear.set('2026')
+        url.set(providers.gradleProperty('POM_URL').orElse('https://github.com/FerdaKoplo/solaire-core'))
+        licenses {
+            license {
+                name.set(providers.gradleProperty('POM_LICENSE_NAME').orElse('MIT License'))
+                url.set(providers.gradleProperty('POM_LICENSE_URL').orElse('https://opensource.org/licenses/MIT'))
+                distribution.set('repo')
+            }
+        }
+        developers {
+            developer {
+                id.set(providers.gradleProperty('POM_DEVELOPER_ID').orElse('FerdaKoplo'))
+                name.set(providers.gradleProperty('POM_DEVELOPER_NAME').orElse('FerdaKoplo'))
+                url.set('https://github.com/FerdaKoplo')
+            }
+        }
+        scm {
+            url.set('https://github.com/FerdaKoplo/solaire-core')
+            connection.set('scm:git:git://github.com/FerdaKoplo/solaire-core.git')
+            developerConnection.set('scm:git:ssh://git@github.com/FerdaKoplo/solaire-core.git')
+        }
+    }
+}

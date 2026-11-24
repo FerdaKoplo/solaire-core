@@ -154,6 +154,18 @@ El.link("/users/7", "User 7")   // <a> with click interception
 Router.navigate("/users/7")
 ```
 
+## Publishing
+
+Coordinates: `dev.jreact:solaire-core:<version>`. Every GitHub release
+that hits `main` runs `.github/workflows/publish.yml`: `test` gates, then
+the `com.vanniktech.maven.publish` plugin uploads to the Sonatype Central
+Publisher Portal via Gradle (`publishAndReleaseToMavenCentral`), which
+auto-releases to Maven Central once validation passes (or upload-only so
+you can hit "Publish" in the portal first — toggle via the release
+dispatch `publish` input). Credentials come from repo secrets only
+(`CENTRAL_USERNAME`, `CENTRAL_PASSWORD`, `CENTRAL_SIGNING_KEY`,
+`CENTRAL_SIGNING_KEY_PASSWORD`); nothing secret is committed.
+
 ## Limits
 
 - One global render queue. No concurrent mode, no Suspense, no context provider
