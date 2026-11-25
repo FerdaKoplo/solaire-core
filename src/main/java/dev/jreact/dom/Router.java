@@ -22,7 +22,7 @@ import java.util.Map;
  *  Router.navigate("/users/7");
  *
  * Reading state inside a page: Router.path() / Router.params().
- * Router.link(...) renders an <a> that navigates without a page reload.
+ * Router.link(...) renders an &lt;a&gt; that navigates without a page reload.
  */
 public final class Router {
     private Router() {}

@@ -10,9 +10,9 @@ import java.util.function.Consumer;
 import static dev.jreact.dom.H.el;
 
 /**
- * Label + input + optional error text. Controlled by a State<String>.
+ * Label + input + optional error text. Controlled by a {@code State<String>}.
  *
- *   State<String> email = scope.useState("");
+ * {@code State<String> email = scope.useState("");}
  *   Ui.field("Email", email, v -> { if (!v.contains("@")) return "Invalid email"; return null; })
  */
 public final class FormField {

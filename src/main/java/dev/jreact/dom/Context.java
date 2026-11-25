@@ -4,7 +4,7 @@ package dev.jreact.dom;
  * Context token for dependency injection down the tree. A {@code Provider}
  * publishes a value; descendants read it via {@code scope.useContext(ctx)}.
  *
- *   Context<Theme> Theme = Context.of(() -> Themes.light());
+ * {@code Context<Theme> Theme = Context.of(() -> Themes.light());}
  *   ...
  *   El.provider(Theme, Themes.dark(), () -> AppShell.appShell(scope, ...));
  *   ...

@@ -141,7 +141,7 @@ public final class El {
         return h("a", Attr.of().href(href), children);
     }
 
-    /** App-internal link: renders <a href="#to"> and intercepts clicks. */
+    /** App-internal link: renders &lt;a href="#to"&gt; and intercepts clicks. */
     public static VNode link(String to, Object... children) {
         return Router.link(to, toNodes(children));
     }

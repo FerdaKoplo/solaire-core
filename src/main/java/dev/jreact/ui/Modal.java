@@ -12,7 +12,7 @@ import static dev.jreact.dom.H.el;
 /**
  * Modal dialog controlled by a boolean State. Render when open, else nothing.
  *
- *   State<Boolean> open = scope.useState(false);
+ * {@code State<Boolean> open = scope.useState(false);}
  *   Ui.modal(open, "Confirm", () -> body(), () -> footer())
  */
 public final class Modal {
