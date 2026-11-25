@@ -21,15 +21,6 @@ base {
     archivesName = 'solaire-core'
 }
 
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifactId = 'solaire-core'
-            from components.java
-        }
-    }
-}
-
 repositories {
     mavenCentral()
 }
