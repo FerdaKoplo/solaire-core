@@ -3,6 +3,8 @@ name: publish
 on:
   release:
     types: [published]
+  push:
+    tags: ['*']
   workflow_dispatch:
     inputs:
       publish:
