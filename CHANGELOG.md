@@ -4,7 +4,7 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use
 [SemVer](https://semver.org/).
 
-## Unreleased
+## 1.3.2 - 2026-11-25
 
 ### Added
 - `El.list(tag, items, keyFn, renderFn)` — keyed repeatable lists; keys keep
@@ -27,7 +27,7 @@ All notable changes to this project are documented here. Format follows
   staleness deterministically.
 
 ### Changed
-- Automatic publishing: `.github/workflows/publish.yml` runs `test` -> `com.vanniktech.maven.publish` to the Sonatype Central Publisher Portal when a GitHub release is created (auto-publishes to Maven Central after validation passes; set the `publish` dispatch input to `false` to stage instead). `gradle.properties` documents signing/token env (never hardcoded); `POM_*` props feed the generated POM.
+- Automatic publishing: `.github/workflows/publish.yml` runs `test` -> `com.vanniktech.maven.publish` to the Sonatype Central Publisher Portal when a GitHub release is created (auto-publishes to Maven Central after validation passes; set the `publish` dispatch input to `false` to stage instead). `gradle.properties` documents signing/token env (never hardcoded).
 ### Fixed
 - Keyed sibling reorder now moves DOM nodes instead of patching by index.
 - `Renderer.setFactory` previously no-op: `El`/`H` hardcoded
