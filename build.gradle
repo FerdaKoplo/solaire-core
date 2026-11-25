@@ -14,7 +14,7 @@ plugins {
     id 'com.vanniktech.maven.publish' version '0.37.0'
 }
 
-group = 'dev.jreact'
+group = 'io.github.ferdakoplo'
 version = '1.3.2'
 
 base {

@@ -156,7 +156,7 @@ Router.navigate("/users/7")
 
 ## Publishing
 
-Coordinates: `dev.jreact:solaire-core:<version>`. Every GitHub release
+Coordinates: `io.github.ferdakoplo:solaire-core:<version>`. Every GitHub release
 that hits `main` runs `.github/workflows/publish.yml`: `test` gates, then
 the `com.vanniktech.maven.publish` plugin uploads to the Sonatype Central
 Publisher Portal via Gradle (`publishAndReleaseToMavenCentral`), which
