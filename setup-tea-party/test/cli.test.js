@@ -133,6 +133,11 @@ describe('scaffoldProject', () => {
 });
 
 describe('CLI entrypoint', () => {
+  it('prints version 1.1.0 with --version', async () => {
+    const { stdout } = await execFileAsync(process.execPath, [BIN_PATH, '--version']);
+    assert.equal(stdout.trim(), '1.1.0');
+  });
+
   it('runs end-to-end with --yes', async () => {
     const tmp = await makeTempDir();
     const target = path.join(tmp, 'tea-demo');
