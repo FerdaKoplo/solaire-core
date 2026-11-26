@@ -3,7 +3,7 @@ export const THEMES = ['tea', 'tailwind', 'css'];
 
 export const DEFAULT_PROJECT_NAME = 'my-tea-party';
 export const DEFAULT_THEME = 'tea';
-export const DEFAULT_SOLAIRE_VERSION = '1.4.0';
+export const DEFAULT_SOLAIRE_VERSION = '1.4.1';
 
 const JAVA_KEYWORDS = new Set([
   'abstract', 'assert', 'boolean', 'break', 'byte', 'case', 'catch', 'char',

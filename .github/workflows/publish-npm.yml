@@ -1,0 +1,58 @@
+name: publish-npm
+
+on:
+  push:
+    tags: ['setup-tea-party-v*']
+  workflow_dispatch:
+    inputs:
+      staged:
+        description: 'Stage the publish for manual 2FA approval instead of publishing directly'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: setup-tea-party
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test
+        run: npm test
+
+  publish:
+    name: publish
+    needs: gate
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: setup-tea-party
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Ensure latest npm for OIDC
+        run: npm install -g npm@latest
+      - name: Publish to npm
+        run: |
+          if [ "${{ github.event.inputs.staged }}" = "true" ]; then
+            npm stage publish --provenance --access public
+          else
+            npm publish --provenance --access public
+          fi

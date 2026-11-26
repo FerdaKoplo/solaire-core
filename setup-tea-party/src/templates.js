@@ -18,6 +18,7 @@ export function renderTemplates({ projectName, packageName, theme, solaireVersio
 
   return {
     '.gitignore': renderGitignore(),
+    '.vscode/solaire.code-snippets': renderSnippets(),
     'settings.gradle': renderSettingsGradle(projectName),
     'build.gradle': renderBuildGradle({ packageName, solaireVersion }),
     'package.json': renderPackageJson({ projectName, usesTailwind }),
@@ -421,4 +422,148 @@ npm run tea-party
 - \`npm run build\` — Compile Java and build the production Vite bundle into \`dist/\`
 - \`npm test\` — Run JUnit 5 JVM tests (\`./gradlew test\`)
 `;
+}
+
+function renderSnippets() {
+  return JSON.stringify(
+    {
+      'solaire: Functional Component (NoProps)': {
+        scope: 'java',
+        prefix: 'jfc',
+        description: 'Create a solaire-core props-free functional component',
+        body: [
+          'import dev.jreact.dom.FC;',
+          'import dev.jreact.dom.Renderer;',
+          'import dev.jreact.dom.nodes.VNode;',
+          'import static dev.jreact.dom.H.el;',
+          '',
+          'public final class ${1:MyComponent} implements FC.NoProps {',
+          '    @Override',
+          '    public VNode render(Renderer.RenderScope scope) {',
+          '        return el("${2:div}").kids(',
+          '            $0',
+          '        ).end();',
+          '    }',
+          '}',
+        ],
+      },
+      'solaire: Functional Component with Props': {
+        scope: 'java',
+        prefix: 'jfcp',
+        description: 'Create a solaire-core functional component with typed props',
+        body: [
+          'import dev.jreact.dom.FC;',
+          'import dev.jreact.dom.Renderer;',
+          'import dev.jreact.dom.nodes.VNode;',
+          'import static dev.jreact.dom.H.el;',
+          '',
+          'public final class ${1:MyComponent} implements FC<${2:String}> {',
+          '    @Override',
+          '    public VNode render(Renderer.RenderScope scope, ${2:String} props) {',
+          '        return el("${3:div}").kids(',
+          '            $0',
+          '        ).end();',
+          '    }',
+          '}',
+        ],
+      },
+      'solaire: useState': {
+        scope: 'java',
+        prefix: 'jstate',
+        description: 'Declare a reactive State cell in RenderScope',
+        body: ['State<${1:String}> ${2:value} = scope.useState(${3:""});'],
+      },
+      'solaire: useEffect': {
+        scope: 'java',
+        prefix: 'jeffect',
+        description: 'Run a side effect with cleanup and dependencies',
+        body: [
+          'scope.useEffect(() -> {',
+          '    $0',
+          '    return () -> {};',
+          '}, ${1:dep});',
+        ],
+      },
+      'solaire: useMemo': {
+        scope: 'java',
+        prefix: 'jmemo',
+        description: 'Memoize a derived value by dependencies',
+        body: ['${1:String} ${2:derived} = scope.useMemo(deps -> ${3:compute()}, ${4:dep});'],
+      },
+      'solaire: Context & Provider': {
+        scope: 'java',
+        prefix: 'jctx',
+        description: 'Define a Context token and wrap children with El.provider',
+        body: [
+          'static final Context<${1:String}> ${2:MyContext} = Context.of(${3:"default"});',
+          '',
+          'El.provider(${2:MyContext}, ${4:"value"}, () -> ${0:child});',
+        ],
+      },
+      'solaire: useTransition & useDeferredValue': {
+        scope: 'java',
+        prefix: 'jtrans',
+        description: 'Use concurrent transition and deferred value',
+        body: [
+          'JReact.Transition ${1:transition} = scope.useTransition();',
+          '${2:String} ${3:deferred} = scope.useDeferredValue(${4:value}.get());',
+          '${1:transition}.start(() -> ${5:filter}.set(${4:value}.get()));',
+        ],
+      },
+      'solaire: Query.use': {
+        scope: 'java',
+        prefix: 'jquery',
+        description: 'Fetch and cache async data with Query.use and Http.get',
+        body: [
+          'var ${1:items} = Query.use("${2:items}", (onData, onError) ->',
+          '    Http.get("${3:/api/items}", res -> {',
+          '        if (res.ok()) onData.accept(res.body());',
+          '        else onError.accept(res.body());',
+          '    }));',
+          'if (${1:items}.isLoading()) return Ui.spinner();',
+          'if (${1:items}.error() != null) return Ui.toast(${1:items}.error(), "error");',
+        ],
+      },
+      'solaire: Router.install': {
+        scope: 'java',
+        prefix: 'jroute',
+        description: 'Install hash Router with routes',
+        body: [
+          'Router.install(HTMLDocument.current().getElementById("${1:app}"), List.of(',
+          '    Router.route("/", () -> ${2:HomePage.render()}),',
+          '    Router.route("/${3:items}/:id", params -> ${4:DetailPage.render(params)})',
+          '));',
+        ],
+      },
+      'solaire: AppShell & Card': {
+        scope: 'java',
+        prefix: 'jshell',
+        description: 'Render AppShell sidebar layout with Ui.card',
+        body: [
+          'AppShell.appShell(',
+          '    scope,',
+          '    "${1:Tea Party}",',
+          '    List.of(AppShell.NavItem.item("/", "${2:Home}")),',
+          '    () -> Ui.card("${3:Overview}", $0)',
+          ');',
+        ],
+      },
+      'solaire: DataTable': {
+        scope: 'java',
+        prefix: 'jtable',
+        description: 'Render a typed DataTable with columns',
+        body: [
+          'DataTable.table(',
+          '    List.of(',
+          '        DataTable.Col.of("${1:Name}", row -> ${2:row.name()})',
+          '    ),',
+          '    ${3:rows},',
+          '    "${4:No items yet}"',
+          ');',
+        ],
+      },
+    },
+    null,
+    2
+  ) + '\n';
 }

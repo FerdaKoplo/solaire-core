@@ -75,6 +75,38 @@ public class ReconcilePerfTest {
     }
 
     @Test
+    void equalSubtreeSkipsChildTraversalCompletely() {
+        FakeDom f = fake();
+        VNode first = rows(50);
+        FakeDom.FakeNode c = mount(f, first);
+
+        int[] childQueries = {0};
+        DomOps.use(new DomOps() {
+            @Override public org.teavm.jso.dom.xml.Node createText(String t) { return f.createText(t); }
+            @Override public org.teavm.jso.dom.xml.Node createElement(String t) { return f.createElement(t); }
+            @Override public void appendChild(org.teavm.jso.dom.xml.Node p, org.teavm.jso.dom.xml.Node ch) { f.appendChild(p, ch); }
+            @Override public void insertBefore(org.teavm.jso.dom.xml.Node p, org.teavm.jso.dom.xml.Node ch, org.teavm.jso.dom.xml.Node b) { f.insertBefore(p, ch, b); }
+            @Override public void replaceChild(org.teavm.jso.dom.xml.Node p, org.teavm.jso.dom.xml.Node n, org.teavm.jso.dom.xml.Node o) { f.replaceChild(p, n, o); }
+            @Override public void removeChild(org.teavm.jso.dom.xml.Node p, org.teavm.jso.dom.xml.Node ch) { f.removeChild(p, ch); }
+            @Override public org.teavm.jso.dom.xml.NodeList<? extends org.teavm.jso.dom.xml.Node> childNodes(org.teavm.jso.dom.xml.Node p) {
+                childQueries[0]++;
+                return f.childNodes(p);
+            }
+            @Override public void setText(org.teavm.jso.dom.xml.Node tn, String v) { f.setText(tn, v); }
+            @Override public void setAttribute(org.teavm.jso.dom.xml.Node el, String n, String v) { f.setAttribute(el, n, v); }
+            @Override public void removeAttribute(org.teavm.jso.dom.xml.Node el, String n) { f.removeAttribute(el, n); }
+            @Override public void addListener(org.teavm.jso.dom.xml.Node el, String ev, org.teavm.jso.dom.events.EventListener<?> h) { f.addListener(el, ev, h); }
+            @Override public void clear(org.teavm.jso.dom.xml.Node ct) { f.clear(ct); }
+            @Override public void appendToRoot(org.teavm.jso.dom.xml.Node ct, org.teavm.jso.dom.xml.Node ch) { f.appendToRoot(ct, ch); }
+        });
+
+        // Distinct VNode instances with identical values -> root container queries children once,
+        // then patch() bails out at the <ul> without traversing its 50 <li> children.
+        Renderer.update(c, resolve(rows(50)), resolve(first));
+        assertEquals(1, childQueries[0]);
+    }
+
+    @Test
     void oneTextChangeCostsOneTextSet() {
         FakeDom f = fake();
         VNode first = rows(50);

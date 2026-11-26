@@ -38,6 +38,7 @@ public final class Query {
     public static final class Store {
         final Map<String, CacheEntry> cache = new HashMap<>();
         final Set<String> observed = new LinkedHashSet<>();
+        final Set<String> activeThisRender = new LinkedHashSet<>();
         final Map<String, Fetch<?>> fetchers = new HashMap<>();
         private final LongSupplier clock;
 
@@ -92,6 +93,8 @@ public final class Query {
             observers.add(observer);
             return () -> observers.remove(observer);
         }
+
+        int observerCount() { return observers.size(); }
     }
 
     private static final class CacheEntry {
@@ -112,13 +115,26 @@ public final class Query {
         Entry<T> entry = (Entry<T>) ce.entry;
         s.fetchers.put(key, fetcher);
         s.observed.add(key);
+        s.activeThisRender.add(key);
 
         Renderer.RenderScope scope = Renderer.currentScope();
         if (scope != null) {
             dev.jreact.dom.State<Integer> version = scope.useState(0);
-            Runnable sub = () -> version.set(version.get() + 1);
-            entry.subscribe(e -> sub.run());
-            scope.onCleanup(() -> entry.subscribe(e -> sub.run()).unsubscribe());
+            Renderer.Ref<Subscription> subRef = scope.useRef(null);
+            Renderer.Ref<Entry<?>> entryRef = scope.useRef(null);
+            if (entryRef.get() != entry) {
+                if (subRef.get() != null) subRef.get().unsubscribe();
+                subRef.set(entry.subscribe(e -> version.set(v -> v + 1)));
+                if (entryRef.get() == null) {
+                    scope.onCleanup(() -> {
+                        if (subRef.get() != null) {
+                            subRef.get().unsubscribe();
+                            subRef.set(null);
+                        }
+                    });
+                }
+                entryRef.set(entry);
+            }
         }
 
         if ((entry.fetchedAt == 0 || entry.isStale()) && !ce.inFlight) fetch(key, fetcher);
@@ -206,6 +222,22 @@ public final class Query {
             if (invalidateKey != null) invalidate(invalidateKey);
             else JReact.requestRender();
         }, err -> JReact.requestRender());
+    }
+
+    /** Internal: clear per-render observed query set before resolving the tree. */
+    public static void beginRender() {
+        store.activeThisRender.clear();
+    }
+
+    /** Internal: drop cache entries no mounted component observed this render. */
+    public static void endRenderGc() {
+        gc(Set.copyOf(store.activeThisRender));
+    }
+
+    /** Package-private helper for tests to inspect a cached entry without re-observing. */
+    static Entry<?> peek(String key) {
+        CacheEntry ce = store.cache.get(key);
+        return ce == null ? null : ce.entry;
     }
 
     /** Internal: drop cache entries no mounted component observes. */

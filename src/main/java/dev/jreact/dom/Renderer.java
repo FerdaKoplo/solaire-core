@@ -395,6 +395,7 @@ public final class Renderer {
     }
 
     private static void patch(Node domNode, VNode next, VNode prev, DomOps ops) {
+        if (next == prev || next.equals(prev)) return;
         if (next instanceof TextVNode t) {
             if (!t.text().equals(((TextVNode) prev).text())) ops.setText(domNode, t.text());
             return;

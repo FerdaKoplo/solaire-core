@@ -63,12 +63,12 @@ describe('scaffoldProject', () => {
       projectName: 'garden-ui',
       packageName: 'io.github.test.garden',
       theme: 'tea',
-      solaireVersion: '1.4.0',
+      solaireVersion: '1.4.1',
       force: false,
     });
 
     const buildGradle = await readFile(path.join(targetDir, 'build.gradle'), 'utf8');
-    assert.match(buildGradle, /io\.github\.ferdakoplo:solaire-core:1\.4\.0/);
+    assert.match(buildGradle, /io\.github\.ferdakoplo:solaire-core:1\.4\.1/);
     assert.match(buildGradle, /mainClass = 'io\.github\.test\.garden\.Main'/);
     assert.match(buildGradle, /JSModuleType\.ES2015/);
 
@@ -84,6 +84,11 @@ describe('scaffoldProject', () => {
 
     const gradlewStat = await stat(path.join(targetDir, 'gradlew'));
     assert.notEqual(gradlewStat.mode & 0o111, 0);
+
+    const snippets = JSON.parse(
+      await readFile(path.join(targetDir, '.vscode/solaire.code-snippets'), 'utf8')
+    );
+    assert.equal(snippets['solaire: useState'].prefix, 'jstate');
   });
 
   it('scaffolds css theme without Tailwind dependencies', async () => {
@@ -95,7 +100,7 @@ describe('scaffoldProject', () => {
       projectName: 'plain-app',
       packageName: 'com.example.plain',
       theme: 'css',
-      solaireVersion: '1.4.0',
+      solaireVersion: '1.4.1',
       force: false,
     });
 
@@ -119,7 +124,7 @@ describe('scaffoldProject', () => {
           projectName: 'existing',
           packageName: 'com.example.existing',
           theme: 'tea',
-          solaireVersion: '1.4.0',
+          solaireVersion: '1.4.1',
           force: false,
         }),
       /not empty/
@@ -139,7 +144,7 @@ describe('CLI entrypoint', () => {
     const settings = await readFile(path.join(target, 'settings.gradle'), 'utf8');
     assert.match(settings, /rootProject\.name = 'tea-demo'/);
     const buildGradle = await readFile(path.join(target, 'build.gradle'), 'utf8');
-    assert.match(buildGradle, /io\.github\.ferdakoplo:solaire-core:1\.4\.0/);
+    assert.match(buildGradle, /io\.github\.ferdakoplo:solaire-core:1\.4\.1/);
   });
 });
 

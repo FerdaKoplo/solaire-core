@@ -186,11 +186,12 @@ public final class JReact {
 
     private static void renderNow() {
         if (root == null || container == null) return;
+        QueryBridge.beginRender();
         VNode raw = root.get();
         Set<String> live = new HashSet<>();
         VNode resolved = Renderer.resolve(raw, "root", live);
         Renderer.gc(live);
-        QueryBridge.gc(live);
+        QueryBridge.endRenderGc();
         if (current == null) {
             Renderer.mount(resolved, container);
         } else {
@@ -201,8 +202,7 @@ public final class JReact {
 
     /** Indirection so dom package doesn't import data package directly. */
     static final class QueryBridge {
-        static void gc(Set<String> livePaths) {
-            dev.jreact.data.Query.gc(livePaths);
-        }
+        static void beginRender() { dev.jreact.data.Query.beginRender(); }
+        static void endRenderGc() { dev.jreact.data.Query.endRenderGc(); }
     }
 }

@@ -18,7 +18,7 @@ npx setup-tea-party my-app --package com.example.myapp --theme tea --yes
 
 - `-p, --package <pkg>`: Java base package (default: `com.example.<project>`)
 - `-t, --theme <tea|tailwind|css>`: `Classnames` preset (`tea`, `tailwind`, or `css`)
-- `--solaire-version <version>`: `solaire-core` Maven version (default: `1.4.0`)
+- `--solaire-version <version>`: `solaire-core` Maven version (default: `1.4.1`)
 - `-y, --yes`: Accept defaults without prompting
 - `-f, --force`: Scaffold into a non-empty directory
 - `-h, --help`: Show usage

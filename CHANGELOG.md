@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use
 [SemVer](https://semver.org/).
 
+## 1.4.1 - 2026-11-26
+
+### Added
+- VS Code Java snippets (`.vscode/solaire.code-snippets`) for components,
+  hooks, `Context`, concurrent transitions, `Query`, `Router`, and `dev.jreact.ui`;
+  also scaffolded automatically by `setup-tea-party`.
+
+### Fixed
+- `Query.use` no longer piles up duplicate observers on re-render and now
+  unsubscribes properly on key change or unmount.
+- `JReact.renderNow` now passes observed query keys (`Query.beginRender()` /
+  `Query.endRenderGc()`) rather than component tree paths to `Query.gc`,
+  preserving cached queries across renders.
+- `Renderer.patch` now short-circuits on equal `VNode` subtrees without walking
+  children.
+
 ## 1.4.0 - 2026-11-26
 
 ### Added
