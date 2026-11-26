@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
+import dev.jreact.dom.nodes.ProviderVNode;
 import dev.jreact.dom.nodes.VNode;
 
 /**
@@ -43,6 +45,16 @@ public final class H {
 
     public static H el(String tag, String key) {
         return new H(tag, key, Map.of(), Map.of(), new ArrayList<>());
+    }
+
+    /** Publish a Context value to the subtree built by {@code children}. */
+    public static <T> VNode provider(Context<T> context, T value, Supplier<VNode> children) {
+        return new ProviderVNode<>(context, value, children);
+    }
+
+    /** Keyed Context provider for lists/conditionals. */
+    public static <T> VNode provider(Context<T> context, T value, String key, Supplier<VNode> children) {
+        return new ProviderVNode<>(context, value, key, children);
     }
 
     public H kid(Object child) {

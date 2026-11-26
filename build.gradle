@@ -15,7 +15,7 @@ plugins {
 }
 
 group = 'io.github.ferdakoplo'
-version = '1.3.2'
+version = '1.4.0'
 
 base {
     archivesName = 'solaire-core'

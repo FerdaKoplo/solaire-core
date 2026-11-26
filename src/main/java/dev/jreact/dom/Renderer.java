@@ -58,7 +58,7 @@ public final class Renderer {
 
         <T> State<T> slot(int index, T initial) {
             if (index < states.size()) return cast(states.get(index));
-            State<T> s = new State<>(initial, JReact::requestRender);
+            State<T> s = new State<>(initial, JReact::requestRender, JReact::requestTransitionRender);
             states.add(s);
             return s;
         }
@@ -82,6 +82,9 @@ public final class Renderer {
 
     public static RenderScope currentScope() { return CURRENT.get(); }
 
+    /** Distinguishes an explicit {@code null} Provider value from an absent Context. */
+    private static final Object NULL_SENTINEL = new Object();
+
     /** Context values pushed by enclosing Providers while resolving. */
     private static final ThreadLocal<java.util.Map<Context<?>, Object>> CONTEXT =
             ThreadLocal.withInitial(java.util.HashMap::new);
@@ -91,10 +94,9 @@ public final class Renderer {
     static void clearContext() { CONTEXT.get().clear(); }
 
     @SuppressWarnings("unchecked")
-    private static Object restoreContext(Object prev, Context<?> ctx) {
-        if (prev == null) CONTEXT.get().remove(ctx);
+    private static void restoreContext(boolean hadPrev, Object prev, Context<?> ctx) {
+        if (!hadPrev) CONTEXT.get().remove(ctx);
         else CONTEXT.get().put((Context<Object>) ctx, prev);
-        return prev;
     }
 
     @SuppressWarnings("unchecked")
@@ -114,11 +116,14 @@ public final class Renderer {
         if (node instanceof ProviderVNode<?> pv) {
             livePaths.add(path);
             Context<?> ctx = pv.context();
-            Object prev = CONTEXT.get().put((Context<Object>) ctx, pv.value());
+            Map<Context<?>, Object> stack = CONTEXT.get();
+            boolean hadPrev = stack.containsKey(ctx);
+            Object prev = stack.get(ctx);
+            stack.put((Context<Object>) ctx, pv.value() == null ? NULL_SENTINEL : pv.value());
             try {
                 return resolve(pv.children().get(), path + "/c", livePaths);
             } finally {
-                restoreContext(prev, ctx);
+                restoreContext(hadPrev, prev, ctx);
             }
         }
         if (node instanceof TextVNode) {
@@ -184,9 +189,29 @@ public final class Renderer {
         }
 
         /** Nearest Provider value above, or Context.defaultValue(). */
+        @SuppressWarnings("unchecked")
         public <T> T useContext(Context<T> context) {
-            Object v = CONTEXT.get().get(context);
-            return v == null ? context.defaultValue() : (T) v;
+            Map<Context<?>, Object> stack = CONTEXT.get();
+            if (!stack.containsKey(context)) return context.defaultValue();
+            Object v = stack.get(context);
+            return v == NULL_SENTINEL ? null : (T) v;
+        }
+
+        /** Concurrent transition handle ({@code isPending()} + {@code start(...)}). */
+        public JReact.Transition useTransition() {
+            return useRef(new JReact.Transition()).get();
+        }
+
+        /**
+         * Returns the latest committed value during urgent renders and defers
+         * catching up to {@code value} at transition priority.
+         */
+        public <T> T useDeferredValue(T value) {
+            State<T> deferred = useState(value);
+            if (!State.same(deferred.get(), value) && !State.same(deferred.transitionTarget(), value)) {
+                JReact.startTransition(() -> deferred.set(value));
+            }
+            return deferred.get();
         }
     }
 

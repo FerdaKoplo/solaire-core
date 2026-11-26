@@ -76,6 +76,9 @@ in `dev.jreact.patterns` so the core stays uncluttered:
   `src/test` so the virtual DOM itself is testable without a browser.
 - `dev.jreact.patterns.strategy.EffectScheduler` (strategy) — effect timing:
   `setTimeout(0)` in the browser, inline on the JVM.
+- `dev.jreact.patterns.strategy.RenderScheduler` (strategy) — render lane
+  scheduling: urgent updates (`setTimeout(0)`) preempt concurrent transitions
+  (`setTimeout(1)`); override via `RenderScheduler.use(...)` for tests.
 - `Query.Phase` (state machine) — `LOADING -> SUCCESS | ERROR`, one transition
   per fetch result.
 - `dev.jreact.patterns.observer.Subscription` (observer) —
@@ -166,8 +169,26 @@ dispatch `publish` input). Credentials come from repo secrets only
 (`CENTRAL_USERNAME`, `CENTRAL_PASSWORD`, `CENTRAL_SIGNING_KEY`,
 `CENTRAL_SIGNING_KEY_PASSWORD`); nothing secret is committed.
 
+## Concurrent transitions
+
+Mark non-urgent updates as transitions so urgent interactions (typing, clicks)
+commit first and supersede stale transition work:
+
+```java
+JReact.Transition transition = scope.useTransition();
+State<String> query = scope.useState("");
+String deferred = scope.useDeferredValue(query.get());
+
+El.input(Attr.of(), query.get(), next -> {
+    query.set(next);                                      // urgent
+    transition.start(() -> filter.set(next));             // transition (tracks isPending())
+});
+```
+
+Or wrap non-urgent state updates directly with `JReact.startTransition(() -> ...)`.
+
 ## Limits
 
-- One global render queue. No concurrent mode, no Suspense, no context provider
-  tree.
+- Single-threaded cooperative lanes (urgent vs transition) rather than
+  background-thread or frame-sliced fiber interruption; no `Suspense` boundary.
 - Router is hash-based; replace `show()` internals to use the history API.

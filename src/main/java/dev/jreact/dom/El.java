@@ -97,6 +97,11 @@ public final class El {
         return new ProviderVNode<>(context, value, children);
     }
 
+    /** Keyed Provider for lists/conditionals (preserves subtree state identity). */
+    public static <T> VNode provider(Context<T> context, T value, String key, Supplier<VNode> children) {
+        return new ProviderVNode<>(context, value, key, children);
+    }
+
     public static <P> VNode component(FC<P> fc, P props) {
         return Renderer.factory().component(fc, props, null);
     }

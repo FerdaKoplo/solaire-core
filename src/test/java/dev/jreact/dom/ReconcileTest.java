@@ -229,4 +229,29 @@ public class ReconcileTest {
         assertEquals("dark", textOf(child(child(div, 0), 0)));
         assertEquals("light", textOf(child(child(div, 1), 0)));
     }
+
+    @Test
+    void nestedProviderNullOverridesOuterAndKeyedProviderPreservesKey() {
+        FakeDom fake = fake();
+        FakeDom.FakeNode container = element(fake, "div");
+        Context<String> User = Context.of("guest");
+
+        FC.NoProps read = scope -> {
+            String u = scope.useContext(User);
+            return El.span(null, u == null ? "null-user" : u);
+        };
+        VNode keyed = H.provider(User, "alice", "user-k", () -> El.component(read, null));
+        assertEquals("user-k", keyed.key());
+
+        VNode tree = resolve(El.provider(User, "admin", () -> El.div(null,
+                El.component(read, null),
+                El.provider(User, null, () -> El.component(read, null)),
+                keyed)));
+
+        Renderer.mount(tree, container);
+        FakeDom.FakeNode div = child(fake.root, 0);
+        assertEquals("admin", textOf(child(child(div, 0), 0)));
+        assertEquals("null-user", textOf(child(child(div, 1), 0)));
+        assertEquals("alice", textOf(child(child(div, 2), 0)));
+    }
 }
